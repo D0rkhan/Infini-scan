@@ -1,0 +1,2837 @@
+<!DOCTYPE html>
+<!--
+╔═══════════════════════════════════════════════════════════════════════╗
+║  INFINISCAN v4.0 — Version FINALE & Production-Ready                  ║
+║  Architecture : Vanilla JS SPA · CSS pur · Supabase Auth · LocalStore ║
+╠═══════════════════════════════════════════════════════════════════════╣
+║  GUIDE RAPIDE :                                                        ║
+║  1. Collez vos clés Supabase dans SUPABASE_CONFIG (lignes ~90)        ║
+║  2. Modifiez GLOBAL_CONFIG : logo, nom du site, Discord (lignes ~70)  ║
+║  3. Modifiez CATALOG pour ajouter vos séries (lignes ~120)            ║
+║  4. Admin Panel → Générateur JSON → copiez dans CATALOG               ║
+╚═══════════════════════════════════════════════════════════════════════╝
+-->
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#06080f">
+<title id="meta-title">InfiniScan – Scantrad Français</title>
+<meta name="description" id="meta-desc" content="InfiniScan, team de scantrad française. Manhwa, manga et novels VF exclusifs.">
+<meta property="og:title" id="og-title" content="InfiniScan – Scantrad FR">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<!-- Fonts uniquement, pas de Tailwind CDN (zéro erreur console) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;900&family=Raleway:wght@300;400;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<!-- Supabase CDN (Auth Discord réelle) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+/* ═══════════════════════════════════════════════════════════
+   DESIGN SYSTEM — Variables CSS
+   ═══════════════════════════════════════════════════════════ */
+:root {
+  /* Couleurs principales */
+  --bg:        #06080f;
+  --bg2:       #090c18;
+  --surface:   #0d1423;
+  --surface2:  #131e30;
+  --surface3:  #192638;
+  --surface4:  #1f2f44;
+  --gold:      #f0a500;
+  --gold2:     #f5c842;
+  --orange:    #e8580a;
+  --red:       #dc2626;
+  --green:     #10b981;
+  --blue:      #3b82f6;
+  --purple:    #8b5cf6;
+
+  /* Glass & bordures */
+  --glass:     rgba(255,255,255,0.032);
+  --glass-md:  rgba(255,255,255,0.055);
+  --border:    rgba(255,255,255,0.07);
+  --border2:   rgba(240,165,0,0.18);
+  --border3:   rgba(240,165,0,0.35);
+
+  /* Texte */
+  --text:      #dde4f0;
+  --text2:     #8496b0;
+  --muted:     #445566;
+
+  /* Effets */
+  --glow-gold: 0 0 40px rgba(240,165,0,0.18);
+  --glow-sm:   0 0 15px rgba(240,165,0,0.12);
+
+  /* Layout */
+  --radius:    10px;
+  --radius-lg: 16px;
+  --radius-xl: 22px;
+  --hdr:       58px;
+  --mob-bar:   54px;
+  --t:         0.26s cubic-bezier(0.4,0,0.2,1);
+}
+
+/* ── Reset & Base ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; font-size: 16px; -webkit-text-size-adjust: 100%; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Raleway', sans-serif;
+  overflow-x: hidden;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+a { text-decoration: none; color: inherit; }
+button { font-family: inherit; }
+img { display: block; max-width: 100%; }
+input, textarea, select { font-family: inherit; }
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: rgba(240,165,0,0.28); border-radius: 8px; }
+::-webkit-scrollbar-thumb:hover { background: var(--gold); }
+::selection { background: rgba(240,165,0,0.22); }
+
+/* ── Utilitaires typographiques ── */
+.font-cinzel { font-family: 'Cinzel', serif; }
+.font-mono   { font-family: 'JetBrains Mono', monospace; }
+.grad-gold {
+  background: linear-gradient(135deg, var(--gold2) 0%, var(--gold) 50%, var(--orange) 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+.grad-text {
+  background: linear-gradient(135deg, #fff 0%, var(--gold) 45%, var(--orange) 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+
+/* ── Glassmorphism ── */
+.glass {
+  background: var(--glass);
+  backdrop-filter: blur(30px) saturate(160%);
+  -webkit-backdrop-filter: blur(30px) saturate(160%);
+  border: 1px solid var(--border2);
+}
+.glass-strong {
+  background: rgba(6,8,15,0.93);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  border: 1px solid var(--border2);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   HEADER
+   ═══════════════════════════════════════════════════════════ */
+#site-header {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 900;
+  height: var(--hdr);
+  background: rgba(6,8,15,0.9);
+  backdrop-filter: blur(36px) saturate(180%);
+  -webkit-backdrop-filter: blur(36px) saturate(180%);
+  border-bottom: 1px solid rgba(240,165,0,0.09);
+  transition: transform 0.3s ease, box-shadow 0.35s;
+}
+#site-header.scrolled { box-shadow: 0 4px 50px rgba(0,0,0,0.6); }
+#site-header.hdr-hidden { transform: translateY(-100%); }
+.hdr-inner {
+  max-width: 1600px; margin: 0 auto; padding: 0 20px;
+  height: var(--hdr); display: flex; align-items: center; gap: 16px;
+}
+/* Logo */
+.logo-wrap { display: flex; align-items: center; gap: 10px; cursor: pointer; flex-shrink: 0; }
+.logo-img-box {
+  width: 38px; height: 38px; border-radius: 8px; overflow: hidden;
+  background: linear-gradient(135deg, #1a0400, var(--surface));
+  border: 1px solid rgba(240,165,0,0.22);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.logo-img-box img { width: 100%; height: 100%; object-fit: contain; }
+.logo-placeholder-icon {
+  width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Cinzel', serif; font-size: 1rem; font-weight: 900;
+  background: linear-gradient(135deg, var(--orange), var(--gold));
+  color: transparent; -webkit-background-clip: text; background-clip: text;
+}
+.logo-name  { font-family: 'Cinzel', serif; font-size: 1.05rem; font-weight: 900; }
+.logo-sub   { font-size: 0.5rem; letter-spacing: 0.3em; color: var(--muted); text-transform: uppercase; margin-top: 1px; }
+/* Nav desktop */
+.desktop-nav { display: flex; align-items: center; gap: 4px; }
+.nav-btn {
+  font-weight: 700; font-size: 0.7rem; letter-spacing: 0.09em; text-transform: uppercase;
+  color: var(--text2); background: none; border: none; padding: 6px 11px; border-radius: 6px;
+  cursor: pointer; transition: color var(--t), background var(--t); position: relative;
+}
+.nav-btn::after {
+  content: ''; position: absolute; bottom: 1px; left: 50%;
+  width: 0; height: 1.5px; background: var(--gold); border-radius: 2px;
+  transition: width 0.22s ease, left 0.22s ease;
+}
+.nav-btn:hover, .nav-btn.active { color: var(--gold); background: rgba(240,165,0,0.07); }
+.nav-btn.active::after, .nav-btn:hover::after { width: 60%; left: 20%; }
+/* Search in header */
+.hdr-search { position: relative; flex: 1; max-width: 290px; }
+.hdr-search-input {
+  width: 100%; background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(240,165,0,0.14); border-radius: 22px;
+  padding: 7px 34px 7px 34px; color: var(--text);
+  font-size: 0.8rem; outline: none;
+  transition: border-color 0.22s, background 0.22s;
+}
+.hdr-search-input:focus { border-color: var(--gold); background: rgba(240,165,0,0.05); }
+.hdr-search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
+.hdr-search-clear { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); cursor: pointer; display: none; font-size: 0.72rem; line-height: 1; }
+.hdr-right { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+/* Hamburger */
+.hamburger-btn {
+  display: none; align-items: center; justify-content: center;
+  width: 36px; height: 36px; border-radius: 7px;
+  background: rgba(255,255,255,0.04); border: 1px solid var(--border); cursor: pointer;
+  color: var(--text2); transition: all 0.2s;
+}
+.hamburger-btn:hover { color: var(--gold); border-color: var(--border3); }
+
+/* Search dropdown */
+#search-dropdown {
+  position: fixed; z-index: 1600;
+  background: rgba(6,8,15,0.98); backdrop-filter: blur(36px);
+  border: 1px solid var(--border3); border-radius: var(--radius);
+  box-shadow: 0 24px 70px rgba(0,0,0,0.7);
+  max-height: 380px; overflow-y: auto; min-width: 300px;
+  display: none;
+}
+#search-dropdown.open { display: block; animation: fadeDown 0.18s ease; }
+@keyframes fadeDown { from { opacity:0; transform:translateY(-6px) } to { opacity:1; transform:translateY(0) } }
+.sr-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; cursor: pointer; transition: background 0.15s; }
+.sr-item:hover { background: rgba(240,165,0,0.07); }
+.sr-thumb { width: 38px; height: 52px; border-radius: 5px; object-fit: cover; flex-shrink: 0; overflow: hidden; }
+.sr-title { font-size: 0.82rem; font-weight: 700; margin-bottom: 2px; }
+.sr-meta  { font-size: 0.65rem; color: var(--muted); }
+
+/* ═══════════════════════════════════════════════════════════
+   MOBILE SIDEBAR & TAB BAR
+   ═══════════════════════════════════════════════════════════ */
+#mob-overlay {
+  display: none; position: fixed; inset: 0; z-index: 1100;
+  background: rgba(0,0,0,0.75); backdrop-filter: blur(4px);
+}
+#mob-overlay.open { display: block; }
+#mob-sidebar {
+  position: fixed; top: 0; right: -290px; bottom: 0; width: 275px; z-index: 1200;
+  background: rgba(6,8,15,0.99); backdrop-filter: blur(40px);
+  border-left: 1px solid rgba(240,165,0,0.14);
+  transition: right 0.3s cubic-bezier(0.4,0,0.2,1);
+  padding: 20px 16px; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 6px;
+}
+#mob-sidebar.open { right: 0; }
+.mob-link {
+  display: flex; align-items: center; gap: 12px; padding: 12px 14px;
+  border-radius: 8px; cursor: pointer; font-weight: 700; font-size: 0.88rem;
+  color: var(--text2); transition: all 0.2s;
+  border: 1px solid transparent;
+}
+.mob-link svg { flex-shrink: 0; }
+.mob-link:hover, .mob-link.active { color: var(--gold); background: rgba(240,165,0,0.07); border-color: rgba(240,165,0,0.15); }
+#tab-bar {
+  display: none;
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 900;
+  height: var(--mob-bar);
+  background: rgba(6,8,15,0.97); backdrop-filter: blur(36px);
+  border-top: 1px solid rgba(240,165,0,0.09);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.tab-bar-inner { display: flex; height: 100%; }
+.tab-item {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 3px; cursor: pointer; color: var(--muted);
+  transition: color var(--t); border: none; background: none; position: relative;
+}
+.tab-item.active { color: var(--gold); }
+.tab-item::before {
+  content: ''; position: absolute; top: 0; left: 22%; right: 22%;
+  height: 2px; background: var(--gold); border-radius: 0 0 4px 4px;
+  transform: scaleX(0); transition: transform 0.22s ease;
+}
+.tab-item.active::before { transform: scaleX(1); }
+.tab-lbl { font-size: 0.52rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; }
+.tab-badge {
+  position: absolute; top: 5px; right: calc(50% - 16px);
+  background: var(--red); color: #fff; font-size: 0.48rem; font-weight: 800;
+  border-radius: 99px; padding: 1px 4px; min-width: 13px; text-align: center;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PAGES & TRANSITIONS
+   ═══════════════════════════════════════════════════════════ */
+.page {
+  display: none;
+  min-height: 100vh;
+  padding-top: var(--hdr);
+  padding-bottom: var(--mob-bar);
+}
+.page.active {
+  display: block;
+  animation: pageIn 0.32s cubic-bezier(0.4,0,0.2,1) both;
+}
+@keyframes pageIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+/* Reader page spécial */
+#page-reader { background: #000; padding-bottom: 0; }
+
+/* ═══════════════════════════════════════════════════════════
+   LAYOUT HELPERS
+   ═══════════════════════════════════════════════════════════ */
+.container    { max-width: 1540px; margin: 0 auto; padding: 0 22px; }
+.container-sm { max-width: 900px;  margin: 0 auto; padding: 0 22px; }
+.section      { padding: 44px 0; }
+.section-hd   { display: flex; align-items: center; justify-content: space-between; margin-bottom: 22px; flex-wrap: wrap; gap: 10px; }
+.section-title {
+  font-family: 'Cinzel', serif; font-size: 1.05rem; color: var(--gold);
+  padding-left: 14px; position: relative; letter-spacing: 0.07em; text-transform: uppercase;
+}
+.section-title::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+  width: 3px; background: linear-gradient(to bottom, var(--gold), var(--orange)); border-radius: 2px;
+}
+.see-all { font-size: 0.7rem; font-weight: 700; color: var(--gold); cursor: pointer; opacity: 0.8; transition: opacity 0.2s; }
+.see-all:hover { opacity: 1; }
+
+/* ═══════════════════════════════════════════════════════════
+   BOUTONS
+   ═══════════════════════════════════════════════════════════ */
+.btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  border: none; border-radius: 7px; cursor: pointer;
+  font-family: 'Cinzel', serif; font-weight: 700; letter-spacing: 0.06em;
+  transition: all var(--t); text-decoration: none; white-space: nowrap;
+}
+.btn-primary { background: linear-gradient(135deg, var(--orange), var(--gold)); color: #06080f; padding: 9px 20px; font-size: 0.76rem; }
+.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(240,165,0,0.32); }
+.btn-secondary { background: var(--surface2); border: 1px solid var(--border3); color: var(--gold); padding: 8px 18px; font-size: 0.76rem; }
+.btn-secondary:hover { background: rgba(240,165,0,0.1); }
+.btn-ghost { background: transparent; border: 1px solid rgba(255,255,255,0.12); color: var(--text); padding: 8px 18px; font-size: 0.76rem; }
+.btn-ghost:hover { border-color: var(--gold); color: var(--gold); }
+.btn-danger { background: rgba(220,38,38,0.12); border: 1px solid rgba(220,38,38,0.3); color: #f87171; padding: 7px 14px; font-size: 0.74rem; }
+.btn-danger:hover { background: rgba(220,38,38,0.22); }
+.btn-discord { background: #5865F2; color: #fff; padding: 9px 18px; font-size: 0.78rem; font-family: 'Raleway', sans-serif; font-weight: 700; }
+.btn-discord:hover { background: #4752c4; transform: translateY(-1px); }
+.btn-sm  { padding: 6px 14px !important; font-size: 0.7rem !important; }
+.btn-xs  { padding: 4px 10px !important; font-size: 0.64rem !important; border-radius: 5px !important; }
+.btn-icon {
+  background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+  color: var(--text2); padding: 7px; border-radius: 7px; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; transition: all 0.2s;
+}
+.btn-icon:hover { color: var(--gold); border-color: var(--border3); background: rgba(240,165,0,0.07); }
+
+/* ═══════════════════════════════════════════════════════════
+   HERO
+   ═══════════════════════════════════════════════════════════ */
+.hero {
+  height: 87vh; min-height: 500px; position: relative;
+  overflow: hidden; display: flex; align-items: center;
+}
+.hero-bg { position: absolute; inset: 0; }
+.hero-bg-img {
+  width: 100%; height: 100%; object-fit: cover;
+  opacity: 0; transition: opacity 1.4s ease;
+}
+.hero-bg-img.loaded { opacity: 0.14; }
+.hero-overlay {
+  position: absolute; inset: 0;
+  background: linear-gradient(to right, rgba(6,8,15,0.97) 38%, rgba(6,8,15,0.45) 100%),
+              linear-gradient(to top, rgba(6,8,15,1) 0%, transparent 55%);
+}
+.hero-glow {
+  position: absolute; border-radius: 50%; filter: blur(120px);
+  opacity: 0.07; pointer-events: none;
+}
+.hero-content { position: relative; z-index: 2; width: 100%; }
+.hero-label { display: inline-block; background: linear-gradient(90deg, var(--red), var(--orange)); color: #fff; font-family: 'Cinzel', serif; font-size: 0.56rem; letter-spacing: 0.22em; text-transform: uppercase; padding: 4px 14px; border-radius: 3px; margin-bottom: 18px; }
+.hero-title { font-family: 'Cinzel', serif; font-size: clamp(1.9rem, 5.5vw, 4.6rem); line-height: 1.05; margin-bottom: 14px; }
+.hero-desc  { color: var(--text2); font-size: 0.87rem; line-height: 1.78; max-width: 460px; margin-bottom: 24px; }
+.hero-meta  { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
+.hero-stats { position: absolute; right: 40px; bottom: 32px; z-index: 2; display: flex; gap: 12px; }
+.hero-stat-box { background: rgba(240,165,0,0.06); border: 1px solid rgba(240,165,0,0.15); border-radius: 10px; padding: 10px 16px; text-align: center; backdrop-filter: blur(12px); }
+.hero-stat-n { font-family: 'Cinzel', serif; font-size: 1.4rem; font-weight: 900; }
+
+/* ═══════════════════════════════════════════════════════════
+   TICKER
+   ═══════════════════════════════════════════════════════════ */
+.ticker { background: rgba(240,165,0,0.04); border-top: 1px solid rgba(240,165,0,0.09); border-bottom: 1px solid rgba(240,165,0,0.09); overflow: hidden; display: flex; height: 32px; white-space: nowrap; }
+.ticker-lbl { background: linear-gradient(90deg, var(--orange), var(--gold)); color: #06080f; font-family: 'Cinzel', serif; font-size: 0.56rem; font-weight: 900; letter-spacing: 0.2em; padding: 0 16px; flex-shrink: 0; display: flex; align-items: center; }
+@keyframes tickerScroll { 0% { transform: translateX(0) } 100% { transform: translateX(-50%) } }
+.ticker-track { animation: tickerScroll 38s linear infinite; display: inline-flex; align-items: center; white-space: nowrap; }
+.ticker-track:hover { animation-play-state: paused; }
+.ticker-item { display: inline-flex; align-items: center; font-size: 0.7rem; color: var(--text2); padding: 0 22px; gap: 5px; }
+.ticker-item strong { color: var(--gold); }
+
+/* ═══════════════════════════════════════════════════════════
+   SKELETON LOADERS
+   ═══════════════════════════════════════════════════════════ */
+@keyframes shimmer { 0% { background-position: -500px 0 } 100% { background-position: 500px 0 } }
+.skeleton {
+  background: linear-gradient(90deg, var(--surface) 25%, var(--surface3) 50%, var(--surface) 75%);
+  background-size: 1000px 100%;
+  animation: shimmer 1.8s infinite linear;
+}
+.skel-card { border-radius: var(--radius); overflow: hidden; background: var(--surface); border: 1px solid var(--border); }
+.skel-cover { width: 100%; aspect-ratio: 2/3; }
+.skel-line { height: 10px; border-radius: 4px; margin-bottom: 7px; }
+
+/* ═══════════════════════════════════════════════════════════
+   CARDS GRILLE
+   ═══════════════════════════════════════════════════════════ */
+.cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(156px, 1fr)); gap: 18px; }
+.card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  overflow: hidden; cursor: pointer; position: relative;
+  transition: transform var(--t), box-shadow var(--t), border-color var(--t);
+}
+.card:hover { transform: translateY(-6px); box-shadow: 0 22px 55px rgba(0,0,0,0.6), 0 0 0 1px rgba(240,165,0,0.2); border-color: rgba(240,165,0,0.2); }
+/* Cover avec placeholder stylisé */
+.card-cover {
+  position: relative; aspect-ratio: 2/3; overflow: hidden;
+  background: var(--surface2);
+}
+.card-cover-placeholder {
+  position: absolute; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 8px; padding: 10px;
+  text-align: center;
+}
+.card-cover-placeholder .ph-logo { width: 42px; height: 42px; object-fit: contain; opacity: 0.4; }
+.card-cover-placeholder .ph-logo-text { font-family: 'Cinzel', serif; font-size: 0.85rem; font-weight: 900; opacity: 0.3; }
+.card-cover-placeholder .ph-title { font-size: 0.62rem; font-weight: 700; color: rgba(255,255,255,0.35); line-height: 1.3; }
+.card-cover img.cover-real { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 0.5s, filter 0.4s, transform 0.4s; filter: saturate(0.88); }
+.card-cover img.cover-real.loaded { opacity: 1; }
+.card:hover .card-cover img.cover-real.loaded { filter: saturate(1.05); transform: scale(1.05); }
+/* Badges */
+.card-type { position: absolute; top: 7px; left: 7px; font-size: 0.57rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; padding: 2px 8px; border-radius: 3px; background: rgba(6,8,15,0.88); backdrop-filter: blur(8px); }
+.type-manhwa  { color: var(--gold);   border: 1px solid rgba(240,165,0,0.4); }
+.type-manga   { color: #a78bfa;       border: 1px solid rgba(167,139,250,0.4); }
+.type-novel   { color: #60a5fa;       border: 1px solid rgba(96,165,250,0.4); }
+.type-manhua  { color: #34d399;       border: 1px solid rgba(52,211,153,0.4); }
+.card-status { position: absolute; top: 8px; right: 8px; width: 7px; height: 7px; border-radius: 50%; }
+.s-ongoing { background: var(--green); box-shadow: 0 0 7px var(--green); }
+.s-ended   { background: var(--muted); }
+.s-hiatus  { background: var(--gold);  box-shadow: 0 0 6px var(--gold); }
+/* Bouton favori sur card */
+.card-fav-btn { position: absolute; bottom: 7px; right: 7px; width: 28px; height: 28px; border-radius: 50%; background: rgba(6,8,15,0.75); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.1); cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s; }
+.card:hover .card-fav-btn, .card-fav-btn.is-fav { opacity: 1; }
+/* Body */
+.card-body { padding: 10px 12px 12px; }
+.card-title { font-family: 'Cinzel', serif; font-size: 0.72rem; font-weight: 700; color: #f0f4ff; margin-bottom: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chap-row-mini {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 4px 8px; border-radius: 4px; background: rgba(255,255,255,0.025);
+  border: 1px solid rgba(255,255,255,0.05); cursor: pointer; width: 100%;
+  margin-bottom: 3px; font-size: 0.67rem; font-weight: 600; color: var(--text2);
+  transition: background 0.18s, border-color 0.18s, color 0.18s;
+}
+.chap-row-mini:hover { background: rgba(240,165,0,0.09); border-color: rgba(240,165,0,0.24); color: var(--gold); }
+.chap-mini-new  { font-size: 0.52rem; font-weight: 800; color: var(--orange); text-transform: uppercase; }
+.chap-mini-date { font-size: 0.52rem; color: var(--muted); }
+
+/* ═══════════════════════════════════════════════════════════
+   TAGS / BADGES
+   ═══════════════════════════════════════════════════════════ */
+.tag { font-size: 0.6rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; padding: 3px 9px; border-radius: 3px; border: 1px solid rgba(240,165,0,0.35); color: var(--gold); }
+.tag-blue   { border-color: rgba(59,130,246,0.4);  color: #60a5fa; }
+.tag-purple { border-color: rgba(139,92,246,0.4);  color: #a78bfa; }
+.tag-green  { border-color: rgba(16,185,129,0.4);  color: #34d399; }
+.tag-red    { border-color: rgba(220,38,38,0.4);   color: #f87171; }
+
+/* ═══════════════════════════════════════════════════════════
+   FILTRES CATALOGUE
+   ═══════════════════════════════════════════════════════════ */
+.filter-bar { display: flex; gap: 9px; flex-wrap: wrap; padding: 18px 0; border-bottom: 1px solid var(--border); margin-bottom: 22px; }
+.f-select {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 7px;
+  color: var(--text); padding: 7px 28px 7px 12px; font-size: 0.78rem; cursor: pointer;
+  outline: none; transition: border-color 0.2s; appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23445566' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 10px center;
+  background-color: var(--surface);
+}
+.f-select:hover, .f-select:focus { border-color: rgba(240,165,0,0.34); }
+.f-search-input { background: var(--surface); border: 1px solid var(--border); border-radius: 7px; color: var(--text); padding: 7px 12px; font-size: 0.78rem; outline: none; transition: border-color 0.2s; min-width: 180px; flex: 1; }
+.f-search-input:focus { border-color: rgba(240,165,0,0.34); }
+.sort-btn { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; color: var(--text2); padding: 6px 12px; font-size: 0.7rem; font-weight: 700; cursor: pointer; transition: all 0.2s; }
+.sort-btn.active { background: rgba(240,165,0,0.1); border-color: rgba(240,165,0,0.38); color: var(--gold); }
+
+/* ═══════════════════════════════════════════════════════════
+   PAGE SÉRIE
+   ═══════════════════════════════════════════════════════════ */
+.series-cover-box {
+  width: 195px; height: 275px; border-radius: 10px; overflow: hidden;
+  background: var(--surface2); box-shadow: 0 24px 60px rgba(0,0,0,0.7);
+  flex-shrink: 0; position: relative;
+}
+.series-cover-box img { width: 100%; height: 100%; object-fit: cover; }
+.series-cover-placeholder {
+  position: absolute; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 10px; padding: 18px; text-align: center;
+}
+.series-cover-placeholder img { width: 54px; height: 54px; object-fit: contain; opacity: 0.3; }
+.series-cover-placeholder span { font-size: 0.72rem; color: rgba(255,255,255,0.3); font-weight: 600; line-height: 1.3; }
+.chapter-list { display: flex; flex-direction: column; gap: 4px; }
+.chap-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px; border-radius: 7px;
+  background: var(--surface); border: 1px solid var(--border);
+  cursor: pointer; transition: background 0.18s, border-color 0.18s;
+}
+.chap-row:hover { background: var(--surface2); border-color: rgba(240,165,0,0.2); }
+.chap-row.read-row { opacity: 0.5; }
+.chap-row.latest-row { border-color: rgba(240,165,0,0.4); background: rgba(240,165,0,0.05); }
+.chap-num { font-family: 'Cinzel', serif; font-size: 0.8rem; font-weight: 700; }
+.chap-date { font-size: 0.67rem; color: var(--muted); margin-top: 2px; }
+.badge-new  { font-size: 0.52rem; font-weight: 800; text-transform: uppercase; padding: 2px 7px; border-radius: 3px; background: rgba(220,38,38,0.14); color: #fca5a5; border: 1px solid rgba(220,38,38,0.28); }
+.badge-read { font-size: 0.52rem; font-weight: 800; text-transform: uppercase; padding: 2px 7px; border-radius: 3px; background: rgba(100,116,139,0.12); color: var(--muted); border: 1px solid rgba(100,116,139,0.2); }
+.share-btn { background: rgba(255,255,255,0.04); border: 1px solid var(--border); color: var(--text2); border-radius: 7px; padding: 7px 14px; font-size: 0.7rem; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s; }
+.share-btn:hover { color: var(--gold); border-color: rgba(240,165,0,0.28); }
+
+/* ═══════════════════════════════════════════════════════════
+   LECTEUR (READER)
+   ═══════════════════════════════════════════════════════════ */
+#reader-wrap { min-height: 100vh; position: relative; background: #000; }
+.rdr-ui { position: fixed; left: 0; right: 0; z-index: 700; transition: opacity 0.28s, transform 0.28s; }
+.rdr-ui.rdr-hidden { opacity: 0; pointer-events: none; }
+.rdr-header {
+  top: 0; height: 50px; display: flex; align-items: center; padding: 0 14px; gap: 12px;
+  background: rgba(0,0,0,0.93); backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.rdr-footer {
+  bottom: 0; height: 50px; display: flex; align-items: center;
+  padding: 0 14px; justify-content: space-between; gap: 10px;
+  background: rgba(0,0,0,0.93); backdrop-filter: blur(20px);
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+/* Barre de progression */
+.rdr-prog-bar { top: 50px; left: 0; right: 0; height: 3px; background: rgba(255,255,255,0.04); }
+.rdr-prog-fill { height: 100%; background: linear-gradient(to right, var(--orange), var(--gold)); width: 0%; transition: width 0.1s; }
+/* Mode Webtoon (vertical) */
+#rdr-vert {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 53px 0;
+}
+#rdr-vert img { width: 100%; max-width: var(--rdr-w, 820px); display: block; margin: 0 auto; }
+/* Mode Page par page */
+#rdr-paged {
+  display: none; align-items: center; justify-content: center;
+  min-height: 100vh; padding: 53px 0;
+}
+#rdr-paged.rdr-mode-active { display: flex; }
+#rdr-paged img { max-height: calc(100vh - 106px); max-width: min(var(--rdr-w, 820px), 100vw); object-fit: contain; }
+.paged-nav { position: fixed; top: 53px; bottom: 53px; width: 30%; cursor: pointer; display: flex; align-items: center; z-index: 650; }
+.paged-nav.left  { left: 0; justify-content: flex-start; padding-left: 10px; }
+.paged-nav.right { right: 0; justify-content: flex-end; padding-right: 10px; }
+.paged-nav-hint { background: rgba(0,0,0,0.4); backdrop-filter: blur(8px); border-radius: 50%; width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.5); font-size: 1.2rem; opacity: 0; transition: opacity 0.2s; }
+.paged-nav:hover .paged-nav-hint { opacity: 1; }
+/* Skeleton page lecteur */
+.page-skel { background: linear-gradient(90deg, #0a0a0a 25%, #141414 50%, #0a0a0a 75%); background-size: 800px 100%; animation: shimmer 1.9s infinite; }
+/* Settings panel */
+#rdr-settings {
+  position: fixed; right: -295px; top: 50px; bottom: 50px;
+  width: 285px; z-index: 800; overflow-y: auto;
+  background: rgba(6,8,15,0.98); backdrop-filter: blur(32px);
+  border-left: 1px solid rgba(240,165,0,0.14); padding: 18px;
+  transition: right 0.3s ease;
+}
+#rdr-settings.open { right: 0; }
+.sg-title { font-family: 'Cinzel', serif; font-size: 0.68rem; letter-spacing: 0.12em; color: var(--gold); text-transform: uppercase; margin-bottom: 11px; }
+.sg-block { margin-bottom: 18px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+.sg-block:last-child { border-bottom: none; }
+.sg-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 9px; }
+.sg-label { font-size: 0.78rem; font-weight: 600; color: var(--text2); }
+.mode-btns { display: flex; gap: 6px; }
+.mode-btn { flex: 1; padding: 7px 0; border-radius: 5px; border: 1px solid var(--border); background: var(--surface); color: var(--text2); font-size: 0.7rem; font-weight: 700; cursor: pointer; text-align: center; transition: all 0.2s; }
+.mode-btn.active { background: rgba(240,165,0,0.1); border-color: var(--gold); color: var(--gold); }
+.w-presets { display: flex; gap: 4px; }
+.w-preset { flex: 1; padding: 5px 0; border: 1px solid var(--border); border-radius: 4px; font-size: 0.62rem; font-weight: 700; color: var(--text2); cursor: pointer; text-align: center; background: var(--surface); transition: all 0.2s; }
+.w-preset.active { border-color: var(--gold); color: var(--gold); background: rgba(240,165,0,0.07); }
+input[type=range] { width: 100%; accent-color: var(--gold); cursor: pointer; }
+/* Toggle switch */
+.toggle-wrap { position: relative; width: 38px; height: 20px; }
+.toggle-wrap input { opacity: 0; width: 0; height: 0; }
+.tog-slider { position: absolute; inset: 0; background: var(--surface3); border-radius: 10px; cursor: pointer; transition: 0.2s; }
+.tog-slider::before { content: ''; position: absolute; width: 14px; height: 14px; left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: 0.2s; }
+input:checked + .tog-slider { background: var(--gold); }
+input:checked + .tog-slider::before { transform: translateX(18px); }
+
+/* ═══════════════════════════════════════════════════════════
+   BIBLIOTHÈQUE / PROFIL
+   ═══════════════════════════════════════════════════════════ */
+.lib-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 22px; }
+.lib-tab { padding: 10px 18px; font-size: 0.74rem; font-weight: 700; letter-spacing: 0.07em; color: var(--muted); border: none; background: none; cursor: pointer; position: relative; transition: color 0.2s; }
+.lib-tab::after { content: ''; position: absolute; bottom: -1px; left: 0; right: 0; height: 2px; background: var(--gold); transform: scaleX(0); transition: transform 0.22s; }
+.lib-tab.active { color: var(--gold); }
+.lib-tab.active::after { transform: scaleX(1); }
+.hist-item { display: flex; gap: 12px; align-items: center; padding: 11px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; transition: border-color 0.2s; margin-bottom: 5px; }
+.hist-item:hover { border-color: rgba(240,165,0,0.24); }
+.hist-thumb { width: 42px; height: 58px; border-radius: 5px; object-fit: cover; background: var(--surface2); flex-shrink: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+.progress-bar-thin { height: 3px; background: rgba(255,255,255,0.08); border-radius: 2px; overflow: hidden; }
+.progress-bar-fill { height: 100%; background: linear-gradient(to right, var(--orange), var(--gold)); border-radius: 2px; }
+.stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.stat-box { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px; text-align: center; }
+.stat-n { font-family: 'Cinzel', serif; font-size: 1.4rem; font-weight: 900; }
+.stat-l { font-size: 0.6rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.09em; margin-top: 2px; }
+
+/* ═══════════════════════════════════════════════════════════
+   ADMIN PANEL
+   ═══════════════════════════════════════════════════════════ */
+.adm-tabs { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 22px; }
+.adm-tab { padding: 8px 16px; border-radius: 6px; font-size: 0.72rem; font-weight: 700; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text2); transition: all 0.2s; }
+.adm-tab.active { background: rgba(240,165,0,0.1); border-color: var(--gold); color: var(--gold); }
+.form-group { margin-bottom: 16px; }
+.form-label { display: block; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text2); margin-bottom: 6px; }
+.form-note { font-size: 0.68rem; color: var(--muted); margin-top: 4px; line-height: 1.5; }
+.form-input {
+  width: 100%; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 7px; padding: 9px 14px; color: var(--text);
+  font-size: 0.83rem; outline: none; transition: border-color 0.2s;
+}
+.form-input:focus { border-color: rgba(240,165,0,0.38); background: rgba(240,165,0,0.03); }
+.form-textarea { min-height: 110px; resize: vertical; }
+.form-input-select { appearance: none; padding-right: 30px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23445566' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; background-color: var(--surface); }
+/* Générateur JSON — la zone de résultat */
+.json-output {
+  background: #060910; border: 1px solid rgba(240,165,0,0.25); border-radius: 8px;
+  padding: 16px; font-family: 'JetBrains Mono', monospace; font-size: 0.72rem;
+  color: #a6e3a1; line-height: 1.7; white-space: pre-wrap; overflow-x: auto;
+  max-height: 320px; overflow-y: auto; position: relative;
+}
+.json-copy-btn { position: absolute; top: 10px; right: 10px; }
+.adm-series-row { display: flex; gap: 10px; align-items: center; padding: 10px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 5px; transition: border-color 0.2s; }
+.adm-series-row:hover { border-color: rgba(240,165,0,0.2); }
+/* Preview pages */
+.pages-preview-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 7px; margin-top: 10px; }
+.prev-thumb { aspect-ratio: 2/3; border-radius: 5px; overflow: hidden; background: var(--surface2); position: relative; }
+.prev-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.prev-num { position: absolute; bottom: 2px; left: 3px; font-size: 0.5rem; color: rgba(255,255,255,0.7); font-weight: 700; }
+
+/* ═══════════════════════════════════════════════════════════
+   COMMENTAIRES
+   ═══════════════════════════════════════════════════════════ */
+.comment-box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; }
+.comment-ta { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 7px; padding: 10px 14px; color: var(--text); font-size: 0.82rem; resize: none; outline: none; transition: border-color 0.2s; min-height: 72px; }
+.comment-ta:focus { border-color: rgba(240,165,0,0.36); }
+.avatar-xs { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, var(--orange), var(--gold)); display: flex; align-items: center; justify-content: center; font-family: 'Cinzel', serif; font-size: 0.65rem; font-weight: 700; color: #06080f; flex-shrink: 0; overflow: hidden; }
+.avatar-xs img { width: 100%; height: 100%; object-fit: cover; }
+.comment-meta { font-size: 0.62rem; color: var(--muted); }
+.comment-body { font-size: 0.8rem; color: #c8d5e8; line-height: 1.68; margin-top: 4px; }
+.like-btn { background: none; border: none; color: var(--muted); font-size: 0.68rem; cursor: pointer; transition: color 0.2s; display: inline-flex; align-items: center; gap: 4px; margin-top: 5px; padding: 0; }
+.like-btn:hover, .like-btn.liked { color: var(--gold); }
+
+/* ═══════════════════════════════════════════════════════════
+   MODAL
+   ═══════════════════════════════════════════════════════════ */
+.modal-overlay { position: fixed; inset: 0; z-index: 3000; background: rgba(0,0,0,0.84); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; padding: 20px; }
+.modal { background: var(--surface); border: 1px solid rgba(240,165,0,0.18); border-radius: var(--radius-xl); padding: 28px; max-width: 440px; width: 100%; position: relative; animation: pageIn 0.28s ease; max-height: 90vh; overflow-y: auto; }
+.modal-title { font-family: 'Cinzel', serif; font-size: 1.2rem; font-weight: 900; margin-bottom: 6px; }
+.modal-close { position: absolute; top: 14px; right: 14px; background: none; border: none; color: var(--muted); cursor: pointer; font-size: 1.1rem; line-height: 1; }
+.modal-close:hover { color: var(--text); }
+.divider { display: flex; align-items: center; gap: 10px; margin: 15px 0; color: var(--muted); font-size: 0.7rem; }
+.divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.info-box { background: rgba(99,102,241,0.07); border: 1px solid rgba(99,102,241,0.2); border-radius: 8px; padding: 12px 14px; }
+.info-box p { font-size: 0.73rem; color: #818cf8; line-height: 1.6; }
+
+/* ═══════════════════════════════════════════════════════════
+   TOAST
+   ═══════════════════════════════════════════════════════════ */
+#toast-zone { position: fixed; bottom: calc(var(--mob-bar) + 14px); right: 18px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+.toast { background: var(--surface); border-radius: 9px; padding: 11px 16px; font-size: 0.79rem; font-weight: 600; max-width: 280px; box-shadow: 0 14px 40px rgba(0,0,0,0.6); display: flex; align-items: center; gap: 9px; border: 1px solid var(--border2); animation: toastIn 0.28s ease; pointer-events: all; }
+@keyframes toastIn { from{opacity:0;transform:translateX(16px)} to{opacity:1;transform:translateX(0)} }
+.toast.exit { animation: toastOut 0.28s ease forwards; }
+@keyframes toastOut { to{opacity:0;transform:translateX(16px)} }
+.toast.t-success { border-color: rgba(16,185,129,0.35); }
+.toast.t-error   { border-color: rgba(220,38,38,0.35); }
+.toast.t-info    { border-color: rgba(59,130,246,0.35); }
+
+/* ═══════════════════════════════════════════════════════════
+   FOOTER
+   ═══════════════════════════════════════════════════════════ */
+footer { background: #030408; border-top: 1px solid rgba(240,165,0,0.08); padding: 44px 0 24px; margin-bottom: var(--mob-bar); }
+.footer-link { color: #324055; font-size: 0.77rem; display: block; margin-bottom: 7px; transition: color 0.2s; cursor: pointer; }
+.footer-link:hover { color: var(--gold); }
+.footer-col-title { font-family: 'Cinzel', serif; font-size: 0.66rem; letter-spacing: 0.15em; color: var(--gold); text-transform: uppercase; margin-bottom: 13px; }
+
+/* ═══════════════════════════════════════════════════════════
+   EMPTY STATES
+   ═══════════════════════════════════════════════════════════ */
+.empty { text-align: center; padding: 60px 20px; color: var(--muted); }
+.empty-icon { font-size: 2.5rem; margin-bottom: 14px; }
+.empty-title { font-family: 'Cinzel', serif; font-size: 1rem; color: var(--text2); margin-bottom: 8px; }
+
+/* ═══════════════════════════════════════════════════════════
+   ANIMATIONS helpers
+   ═══════════════════════════════════════════════════════════ */
+@keyframes fadeUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+.anim { animation: fadeUp 0.56s ease both; }
+.d1 { animation-delay: 0.07s; } .d2 { animation-delay: 0.16s; }
+.d3 { animation-delay: 0.28s; } .d4 { animation-delay: 0.4s; }
+.d5 { animation-delay: 0.54s; }
+
+/* ═══════════════════════════════════════════════════════════
+   RESPONSIVE
+   ═══════════════════════════════════════════════════════════ */
+@media (max-width: 900px) {
+  .desktop-nav { display: none !important; }
+  .hdr-search  { display: none !important; }
+  .hamburger-btn { display: flex !important; }
+  #tab-bar     { display: flex !important; }
+  .page { padding-bottom: calc(var(--mob-bar) + 10px); }
+  .hero-stats { display: none; }
+  .series-cover-box { width: 130px !important; height: 184px !important; }
+}
+@media (max-width: 580px) {
+  .cards-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 11px; }
+  .hero-title { font-size: 1.7rem; }
+  .modal { padding: 20px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════
+     HTML STRUCTURE
+     ═══════════════════════════════════════════════════════════ -->
+
+<!-- HEADER -->
+<header id="site-header">
+  <div class="hdr-inner">
+    <!-- Logo (géré par GLOBAL_CONFIG) -->
+    <div class="logo-wrap" id="logo-wrap" onclick="navigate('home')">
+      <div class="logo-img-box" id="logo-box">
+        <!-- Rempli dynamiquement par renderLogo() -->
+      </div>
+      <div style="display:flex;flex-direction:column;line-height:1">
+        <span class="logo-name grad-gold" id="site-name-hdr">INFINISCAN</span>
+        <span class="logo-sub" id="site-sub-hdr">Scantrad FR</span>
+      </div>
+    </div>
+    <!-- Nav desktop -->
+    <nav class="desktop-nav">
+      <button class="nav-btn active" data-nav="home"    onclick="navigate('home')">Accueil</button>
+      <button class="nav-btn"        data-nav="catalog" onclick="navigate('catalog')">Catalogue</button>
+      <button class="nav-btn"        data-nav="library" onclick="navigate('library')">Bibliothèque</button>
+      <button class="nav-btn" onclick="filterCatalog('manhwa')" style="color:var(--gold)">Manhwa</button>
+      <button class="nav-btn" onclick="filterCatalog('manga')"  style="color:#a78bfa">Manga</button>
+      <button class="nav-btn" onclick="filterCatalog('novel')"  style="color:#60a5fa">Novel</button>
+    </nav>
+    <!-- Recherche desktop -->
+    <div class="hdr-search">
+      <span class="hdr-search-icon">
+        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      </span>
+      <input class="hdr-search-input" id="hdr-search" type="text" placeholder="Rechercher une série…" autocomplete="off"
+        oninput="handleSearch(this.value)" onfocus="openSearchDd()" onblur="closeSearchDdDelay()">
+      <span class="hdr-search-clear" id="hdr-search-clear" onclick="clearSearch()">✕</span>
+    </div>
+    <div class="hdr-right">
+      <div id="hdr-auth-zone"></div>
+      <button class="hamburger-btn" onclick="toggleMobMenu()">
+        <svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+          <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- Search dropdown -->
+<div id="search-dropdown"></div>
+
+<!-- Mobile overlay + sidebar -->
+<div id="mob-overlay" onclick="closeMobMenu()"></div>
+<div id="mob-sidebar">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid var(--border)">
+    <span class="logo-name grad-gold" id="site-name-mob">INFINISCAN</span>
+    <button class="btn-icon" onclick="closeMobMenu()" style="padding:5px">✕</button>
+  </div>
+  <!-- Recherche mobile -->
+  <div style="position:relative;margin-bottom:14px">
+    <span class="hdr-search-icon" style="left:12px;top:50%;transform:translateY(-50%);position:absolute;z-index:1">
+      <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+    </span>
+    <input type="text" class="form-input" placeholder="Rechercher…" style="padding-left:34px;background:var(--surface2)" oninput="handleSearch(this.value)">
+  </div>
+  <div class="mob-link active" data-nav="home"    onclick="navigate('home');closeMobMenu()">
+    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>Accueil</div>
+  <div class="mob-link" data-nav="catalog"  onclick="navigate('catalog');closeMobMenu()">
+    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Catalogue</div>
+  <div class="mob-link" data-nav="library"  onclick="navigate('library');closeMobMenu()">
+    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>Bibliothèque</div>
+  <div class="mob-link" onclick="filterCatalog('manhwa');closeMobMenu()" style="color:var(--gold)">
+    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14.5 10c-.83 0-1.5-.67-1.5-1.5v-5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5v5c0 .83-.67 1.5-1.5 1.5z"/><path d="M20.5 10H19V8.5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/><path d="M9.5 14c.83 0 1.5.67 1.5 1.5v5c0 .83-.67 1.5-1.5 1.5S8 21.33 8 20.5v-5c0-.83.67-1.5 1.5-1.5z"/><path d="M3.5 14H5v1.5c0 .83-.67 1.5-1.5 1.5S2 16.33 2 15.5 2.67 14 3.5 14z"/><path d="M14 14.5c0-.83.67-1.5 1.5-1.5h5c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5h-5c-.83 0-1.5-.67-1.5-1.5z"/></svg>Manhwa</div>
+  <div class="mob-link" onclick="filterCatalog('manga');closeMobMenu()" style="color:#a78bfa">
+    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>Manga</div>
+  <div class="mob-link" onclick="filterCatalog('novel');closeMobMenu()" style="color:#60a5fa">
+    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>Novel</div>
+  <div style="margin-top:auto;padding-top:14px;border-top:1px solid var(--border)">
+    <div id="mob-auth-zone" style="margin-bottom:10px"></div>
+    <a id="mob-discord-btn" href="#" target="_blank" class="btn btn-discord" style="width:100%;justify-content:center;font-size:0.8rem">
+      <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057c.002.022.015.043.032.055a19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.292a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/></svg>
+      Discord InfiniScan
+    </a>
+  </div>
+</div>
+
+<!-- Mobile Tab Bar -->
+<nav id="tab-bar">
+  <div class="tab-bar-inner">
+    <button class="tab-item active" data-tab="home"    onclick="navigate('home')">
+      <svg width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+      <span class="tab-lbl">Accueil</span>
+    </button>
+    <button class="tab-item" data-tab="catalog" onclick="navigate('catalog')">
+      <svg width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <span class="tab-lbl">Catalogue</span>
+    </button>
+    <button class="tab-item" data-tab="library" onclick="navigate('library')">
+      <svg width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+      <span class="tab-lbl">Favoris</span>
+      <span class="tab-badge" id="fav-badge" style="display:none">0</span>
+    </button>
+    <button class="tab-item" data-tab="profile" onclick="navigate('profile')">
+      <svg width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <span class="tab-lbl">Profil</span>
+    </button>
+  </div>
+</nav>
+
+<!-- ══════════════════ PAGES ══════════════════ -->
+
+<!-- HOME -->
+<div id="page-home" class="page active">
+  <section class="hero" id="hero-sec">
+    <div class="hero-bg">
+      <img class="hero-bg-img" id="hero-bg" src="" alt="">
+      <div class="hero-overlay"></div>
+    </div>
+    <div class="hero-glow" style="width:700px;height:700px;left:-120px;top:-120px;background:radial-gradient(circle,#e8580a,transparent)"></div>
+    <div class="hero-glow" style="width:600px;height:600px;right:0;bottom:-80px;background:radial-gradient(circle,#f0a500,transparent)"></div>
+    <div class="hero-content container">
+      <div style="max-width:580px">
+        <div class="hero-label anim">À La Une · InfiniScan</div>
+        <h1 class="hero-title grad-text anim d1" id="hero-title">InfiniScan</h1>
+        <div class="hero-meta anim d2" id="hero-tags"></div>
+        <p class="hero-desc anim d3" id="hero-desc">La meilleure team de scantrad française.</p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap" class="anim d4" id="hero-actions"></div>
+      </div>
+    </div>
+    <div class="hero-stats anim d5">
+      <div class="hero-stat-box"><div class="hero-stat-n grad-gold" id="st-series">0</div><div style="font-size:.55rem;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-top:2px">Séries</div></div>
+      <div class="hero-stat-box"><div class="hero-stat-n grad-gold" id="st-chaps">0</div><div style="font-size:.55rem;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-top:2px">Chapitres</div></div>
+      <div class="hero-stat-box"><div class="hero-stat-n grad-gold" id="st-members">FR</div><div style="font-size:.55rem;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-top:2px">Team</div></div>
+    </div>
+  </section>
+  <!-- Ticker -->
+  <div class="ticker"><span class="ticker-lbl">MAJ</span><div class="ticker-track" id="ticker-track"></div></div>
+  <!-- Latest -->
+  <div class="container"><div class="section">
+    <div class="section-hd">
+      <span class="section-title">Dernières Sorties</span>
+      <div style="display:flex;gap:5px;flex-wrap:wrap">
+        <button class="sort-btn active" onclick="homeTypeFilter('all',this)">Tout</button>
+        <button class="sort-btn" onclick="homeTypeFilter('manhwa',this)">Manhwa</button>
+        <button class="sort-btn" onclick="homeTypeFilter('manga',this)">Manga</button>
+        <button class="sort-btn" onclick="homeTypeFilter('novel',this)">Novel</button>
+      </div>
+    </div>
+    <div class="cards-grid" id="home-grid"></div>
+  </div></div>
+  <!-- Top rankings -->
+  <div class="container"><div class="section">
+    <div class="section-hd"><span class="section-title">Top Populaires</span><span class="see-all" onclick="navigate('catalog')">Voir tout →</span></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(255px,1fr));gap:11px" id="rankings"></div>
+  </div></div>
+  <!-- Team Banner -->
+  <div class="container" style="padding-bottom:56px">
+    <div class="glass" style="border-radius:var(--radius-xl);padding:34px;position:relative;overflow:hidden;background:linear-gradient(135deg,rgba(232,88,10,.06),rgba(240,165,0,.04))">
+      <div style="position:absolute;right:-50px;top:-50px;width:260px;height:260px;background:radial-gradient(circle,rgba(240,165,0,.06),transparent);pointer-events:none"></div>
+      <div style="display:grid;grid-template-columns:1fr auto;gap:22px;align-items:center">
+        <div>
+          <div style="font-size:.58rem;letter-spacing:.24em;color:var(--orange);text-transform:uppercase;font-weight:700;margin-bottom:9px">Team InfiniScan · Scantrad FR</div>
+          <h3 class="font-cinzel" style="font-size:1.35rem;color:#f0f4ff;margin-bottom:9px">Rejoins l'aventure</h3>
+          <p style="color:var(--muted);font-size:.84rem;line-height:1.74;max-width:460px">Tu aimes la traduction, la correction, le lettrage ou le cleaning ? InfiniScan recrute des passionnés !</p>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;flex-shrink:0">
+          <a id="team-discord-btn" href="#" target="_blank" class="btn btn-discord" style="justify-content:center">
+            <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057c.002.022.015.043.032.055a19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.292a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/></svg>
+            Discord</a>
+          <button class="btn btn-ghost btn-sm" onclick="navigate('catalog')" style="justify-content:center">Catalogue</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <footer>
+    <div class="container">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:30px;margin-bottom:28px">
+        <div>
+          <div class="logo-name grad-gold" style="font-size:.95rem;margin-bottom:9px" id="footer-sitename">InfiniScan</div>
+          <p style="color:#2d4055;font-size:.75rem;line-height:1.7;max-width:200px;margin-bottom:12px">Team de scantrad française, traductions exclusives de manhwa, manga et novel.</p>
+        </div>
+        <div><div class="footer-col-title">Catalogue</div><div class="footer-link" onclick="filterCatalog('manhwa')">Manhwa</div><div class="footer-link" onclick="filterCatalog('manga')">Manga</div><div class="footer-link" onclick="filterCatalog('novel')">Novel</div><div class="footer-link" onclick="navigate('catalog')">Tout voir</div></div>
+        <div><div class="footer-col-title">Genres</div><div class="footer-link" onclick="filterCatalog('action')">Action</div><div class="footer-link" onclick="filterCatalog('romance')">Romance</div><div class="footer-link" onclick="filterCatalog('fantasy')">Fantasy</div><div class="footer-link" onclick="filterCatalog('drama')">Drame</div></div>
+        <div><div class="footer-col-title">Team</div><a id="footer-discord-link" href="#" target="_blank" class="footer-link">Discord</a><div class="footer-link" onclick="showAuthModal()">Connexion</div><div class="footer-link">DMCA</div></div>
+      </div>
+      <div style="border-top:1px solid rgba(255,255,255,.04);padding-top:16px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <span style="font-size:.65rem;color:#253040">© 2025 InfiniScan · Scantrad FR</span>
+        <span style="font-size:.65rem;color:#253040">Fait avec passion</span>
+      </div>
+    </div>
+  </footer>
+</div>
+
+<!-- CATALOG -->
+<div id="page-catalog" class="page">
+  <div class="container">
+    <div style="padding:32px 0 16px">
+      <h2 class="font-cinzel grad-gold" style="font-size:1.85rem;margin-bottom:5px">Catalogue</h2>
+      <p style="color:var(--muted);font-size:.85rem">Toutes nos traductions françaises exclusives</p>
+    </div>
+    <div class="filter-bar">
+      <select class="f-select" id="ft-type"   onchange="renderCatalog()">
+        <option value="">Tous types</option>
+        <option value="manhwa">Manhwa</option><option value="manga">Manga</option>
+        <option value="novel">Novel</option><option value="manhua">Manhua</option>
+      </select>
+      <select class="f-select" id="ft-genre"  onchange="renderCatalog()">
+        <option value="">Tous genres</option>
+        <option value="action">Action</option><option value="romance">Romance</option>
+        <option value="fantasy">Fantasy</option><option value="drama">Drame</option>
+        <option value="cultivation">Cultivation</option><option value="isekai">Isekai</option>
+        <option value="comedy">Comédie</option><option value="regression">Régression</option>
+      </select>
+      <select class="f-select" id="ft-status" onchange="renderCatalog()">
+        <option value="">Tous statuts</option>
+        <option value="ongoing">En cours</option><option value="ended">Terminé</option>
+        <option value="hiatus">En pause</option>
+      </select>
+      <select class="f-select" id="ft-sort"   onchange="renderCatalog()">
+        <option value="updated">Mis à jour</option><option value="popular">Popularité</option>
+        <option value="rating">Note</option><option value="title">Titre A-Z</option>
+      </select>
+      <input type="text" class="f-search-input" id="ft-q" placeholder="Recherche instantanée…" oninput="renderCatalog()">
+    </div>
+    <div id="cat-info" style="font-size:.74rem;color:var(--muted);margin-bottom:13px"></div>
+    <div class="cards-grid" id="catalog-grid" style="padding-bottom:56px"></div>
+  </div>
+</div>
+
+<!-- SERIES -->
+<div id="page-series" class="page"><div id="series-content"></div></div>
+
+<!-- READER -->
+<div id="page-reader" class="page"><div id="reader-root"></div></div>
+
+<!-- LIBRARY -->
+<div id="page-library" class="page">
+  <div class="container" style="padding-top:28px;padding-bottom:56px">
+    <h2 class="font-cinzel grad-gold" style="font-size:1.85rem;margin-bottom:18px">Ma Bibliothèque</h2>
+    <div class="lib-tabs">
+      <button class="lib-tab active" onclick="showLibTab('favorites',this)">Favoris</button>
+      <button class="lib-tab" onclick="showLibTab('history',this)">Historique</button>
+      <button class="lib-tab" onclick="showLibTab('reading',this)">En cours</button>
+    </div>
+    <div id="lib-content"></div>
+  </div>
+</div>
+
+<!-- PROFILE -->
+<div id="page-profile" class="page">
+  <div class="container" id="profile-root" style="padding-top:28px;padding-bottom:56px"></div>
+</div>
+
+<!-- ADMIN -->
+<div id="page-admin" class="page">
+  <div class="container" style="padding-top:28px;padding-bottom:56px">
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:22px;flex-wrap:wrap">
+      <h2 class="font-cinzel grad-gold" style="font-size:1.85rem">Admin Panel</h2>
+      <span style="font-size:.62rem;padding:3px 10px;background:rgba(220,38,38,.13);border:1px solid rgba(220,38,38,.28);color:#fca5a5;border-radius:3px;font-weight:700">STAFF ONLY</span>
+    </div>
+    <div id="admin-root"></div>
+  </div>
+</div>
+
+<!-- AUTH MODAL -->
+<div id="auth-modal" style="display:none">
+  <div class="modal-overlay" onclick="if(event.target===this)closeAuthModal()">
+    <div class="modal">
+      <button class="modal-close" onclick="closeAuthModal()">✕</button>
+      <div class="modal-title grad-gold">Connexion</div>
+      <p style="color:var(--muted);font-size:.8rem;margin-bottom:18px">Connecte-toi pour sauvegarder tes favoris, ton historique et plus encore.</p>
+
+      <!-- Bouton Discord via Supabase (réel si configuré) -->
+      <button class="btn btn-discord" style="width:100%;justify-content:center;padding:12px;font-size:.88rem" onclick="loginWithDiscord()">
+        <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057c.002.022.015.043.032.055a19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.292a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/></svg>
+        Continuer avec Discord
+      </button>
+
+      <div class="divider">ou mode démo</div>
+      <div style="margin-bottom:14px">
+        <label class="form-label">Pseudo</label>
+        <input type="text" class="form-input" id="demo-username" placeholder="Ton pseudo…">
+      </div>
+      <button class="btn btn-secondary" style="width:100%;justify-content:center;padding:11px" onclick="loginDemo()">Créer un compte démo</button>
+
+      <div class="info-box" style="margin-top:16px">
+        <p><strong style="color:#a5b4fc">Configuration Supabase :</strong> Collez <code>https://pqmyjknhhujbjpdqrcun.supabase.co</code> et <code>eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBxbXlqa25oaHVqYmpwZHFyY3VuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIxODk1MjgsImV4cCI6MjA4Nzc2NTUyOH0.P9XPffMWgqmS4ELDJAhKSSMHyVEbXPtQ9z4W8iGbIhk</code> dans la section SUPABASE_CONFIG du script pour activer la vraie connexion Discord OAuth.<br>
+        <a href="https://supabase.com" target="_blank" style="color:#818cf8;text-decoration:underline">supabase.com →</a></p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST ZONE -->
+<div id="toast-zone"></div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     JAVASCRIPT — Toute la logique applicative
+     ═══════════════════════════════════════════════════════════════ -->
+<script>
+'use strict';
+
+/* ═══════════════════════════════════════════════════════════════
+   ██████  SECTION 0 : CONFIGURATION GLOBALE
+   ═══════════════════════════════════════════════════════════════
+   MODIFIEZ ICI TOUTES VOS INFORMATIONS DE CONFIGURATION.
+   Vous n'avez PAS besoin de toucher au reste du code.
+   ═══════════════════════════════════════════════════════════════ */
+const GLOBAL_CONFIG = {
+  /* ── Site ── */
+  SITE_NAME:    'InfiniScan',
+  SITE_TAGLINE: 'Scantrad FR',
+  SITE_URL:     'https://infiniscan.github.io', /* URL de votre site déployé */
+
+  /* ── Logo ──
+   * Collez ici l'URL de votre logo (JPG, PNG, SVG, WebP…)
+   * Exemples :
+   *   - 'https://i.imgur.com/VOTRE_ID.png'
+   *   - 'https://files.catbox.moe/VOTRE_FICHIER.png'
+   *   - './logo.png' si vous hébergez le fichier à côté du HTML
+   * Laissez '' (vide) pour afficher les initiales du site en dégradé doré */
+  LOGO_URL: '',
+
+  /* ── Héros ──
+   * Série mise en avant sur la page d'accueil (doit correspondre à un id dans CATALOG) */
+  FEATURED_SERIES_ID: 'barbarian-academy',
+
+  /* ── Discord ── */
+  DISCORD_INVITE: 'https://discord.gg/uawkRVkJYk',
+
+  /* ── Admin ──
+   * Mot de passe de secours pour le panel admin (si Supabase n'est pas configuré)
+   * CHANGEZ-LE ! Ce n'est qu'un fallback local, jamais utilisé si Supabase est actif. */
+  ADMIN_LOCAL_PASSWORD: 'InfiniScan@2025',
+
+  /* ── IDs Discord des administrateurs (Staff) ──
+   * Ajoutez les Discord User IDs des membres staff.
+   * Ces IDs ont accès au panel Admin automatiquement après connexion Discord.
+   * Format : ['ID1', 'ID2', ...] */
+  ADMIN_DISCORD_IDS: [],
+};
+
+/* ═══════════════════════════════════════════════════════════════
+   ██████  SECTION 1 : SUPABASE CONFIGURATION
+   ═══════════════════════════════════════════════════════════════
+   ÉTAPES POUR ACTIVER L'AUTH DISCORD RÉELLE :
+
+   1. Créez un compte sur https://supabase.com (gratuit)
+   2. Nouveau projet → Récupérez SUPABASE_URL et SUPABASE_ANON_KEY
+   3. Dans Supabase : Authentication → Providers → Discord → Activez
+   4. Dans Discord Dev Portal : créez une app → OAuth2 → copiez
+      Client ID et Client Secret dans Supabase
+   5. Dans Supabase Discord provider : ajoutez votre URL de callback
+      (format : https://VOTRE_PROJECT.supabase.co/auth/v1/callback)
+   6. Dans Discord Dev Portal → OAuth2 → Redirects : ajoutez cette même URL
+   7. Collez vos clés ci-dessous et déployez !
+   ═══════════════════════════════════════════════════════════════ */
+const SUPABASE_CONFIG = {
+  URL:  '',  /* ← COLLEZ ICI : https://xxxxx.supabase.co */
+  KEY:  '',  /* ← COLLEZ ICI : votre anon/public key */
+};
+
+/* ═══════════════════════════════════════════════════════════════
+   ██████  SECTION 2 : CATALOG — BASE DE DONNÉES DES SÉRIES
+   ═══════════════════════════════════════════════════════════════
+   Format d'une série (tous les champs) :
+   {
+     id:          'identifiant-unique-sans-espace',   (requis)
+     title:       'Titre Original',                   (requis)
+     titleFr:     'Titre Français',                   (optionnel)
+     type:        'manhwa' | 'manga' | 'novel' | 'manhua',
+     genre:       ['action', 'fantasy', ...],
+     status:      'ongoing' | 'ended' | 'hiatus',
+     rating:      4.8,          (note sur 5)
+     views:       125000,
+     author:      'Nom auteur',
+     artist:      'Nom dessinateur',
+     description: 'Synopsis...',
+     coverUrl:    'https://...',  (URL image couverture, '' = placeholder)
+     coverBg:     'linear-gradient(135deg,#1a0500,#3d1500)',  (fond placeholder)
+     updatedAt:   '2026-02-24',
+     chapters: [
+       {
+         num:    42,
+         title:  'Chapitre 42',
+         date:   '2026-02-24',
+         pages:  ['https://url-image-1.jpg', 'https://url-image-2.jpg', ...]
+       },
+       ...
+     ]
+   }
+
+   IMPORTANT : Pour ajouter facilement des séries, utilisez
+   le GÉNÉRATEUR JSON dans le Panel Admin → onglet "Générateur".
+   Il créera le bloc JSON à copier-coller ici.
+   ═══════════════════════════════════════════════════════════════ */
+const CATALOG = [
+  /* ── ACTION ── */
+  {
+    id: 'barbarian-academy',
+    title: 'The Barbarian Goes to the Academy',
+    titleFr: "Le Barbare à l'Académie",
+    type: 'manhwa',
+    genre: ['action', 'fantasy', 'academy'],
+    status: 'ongoing',
+    rating: 4.8,
+    views: 125400,
+    author: 'Snail Girl',
+    description: "Un guerrier barbare propulsé dans une académie de magie d'élite. Entre violence brute et stratégie, il surpasse tous les étudiants à sa façon. Traduction FR exclusive par InfiniScan.",
+    coverUrl: '',  /* ← Collez ici l'URL de la couverture */
+    coverBg: 'linear-gradient(135deg,#1a0500,#3d1500)',
+    updatedAt: '2026-02-24',
+    chapters: [
+      { num: 42, title: 'Chapitre 42', date: '2026-02-24', pages: [] },
+      { num: 41, title: 'Chapitre 41', date: '2026-02-24', pages: [] },
+      { num: 40, title: 'Chapitre 40', date: '2026-02-17', pages: [] },
+      { num: 39, title: 'Chapitre 39', date: '2026-02-14', pages: [] },
+      { num: 38, title: 'Chapitre 38', date: '2026-02-12', pages: [] },
+      { num: 37, title: 'Chapitre 37', date: '2026-02-12', pages: [] },
+      { num: 36, title: 'Chapitre 36', date: '2026-02-07', pages: [] },
+      { num: 25, title: 'Chapitre 25', date: '2026-01-04', pages: [] },
+      { num: 23, title: 'Chapitre 23', date: '2025-12-29', pages: [] },
+      { num: 21, title: 'Chapitre 21', date: '2025-12-03', pages: [] },
+      { num: 19, title: 'Chapitre 19', date: '2025-11-26', pages: [] },
+      { num: 17, title: 'Chapitre 17', date: '2025-09-03', pages: [] },
+      { num: 16, title: 'Chapitre 16', date: '2025-08-20', pages: [] },
+    ]
+  },
+  {
+    id: '13th-regression',
+    title: 'Honestly This 13th Regression is Getting Tough',
+    titleFr: 'Honnêtement, Cette 13ème Régression…',
+    type: 'manhwa',
+    genre: ['action', 'fantasy', 'regression'],
+    status: 'ongoing', rating: 4.7, views: 88200,
+    description: 'Un héros à sa 13ème boucle temporelle tente une nouvelle approche.',
+    coverUrl: '', coverBg: 'linear-gradient(135deg,#000a1e,#001a40)',
+    updatedAt: '2026-02-26',
+    chapters: [{ num: 1, title: 'Chapitre 1', date: '2026-02-26', pages: [] }]
+  },
+  {
+    id: 'cheon-scoundrel',
+    title: "I Became the Scoundrel of the Cheon Family",
+    titleFr: "Je Suis le Vaurien des Cheon",
+    type: 'manhwa', genre: ['action', 'fantasy'], status: 'ongoing', rating: 4.6, views: 71000,
+    description: 'Réincarné dans le corps d\'un vaurien d\'une famille de cultivateurs, il doit survivre à la politique familiale.',
+    coverUrl: '', coverBg: 'linear-gradient(135deg,#1a0020,#300040)',
+    updatedAt: '2026-02-15', chapters: []
+  },
+  {
+    id: 'yong-regression',
+    title: 'Regression of the Yong Clan Heir',
+    titleFr: "Régression de l'Héritier Yong",
+    type: 'manhwa', genre: ['action', 'fantasy', 'regression'], status: 'ongoing', rating: 4.5, views: 62000,
+    description: "L'héritier du clan Yong revient en arrière après une mort tragique.",
+    coverUrl: '', coverBg: 'linear-gradient(135deg,#0a1a00,#1a3500)',
+    updatedAt: '2026-01-09', chapters: []
+  },
+  {
+    id: 'dark-star-emperor',
+    title: 'Dark Star Emperor',
+    titleFr: "L'Empereur de l'Étoile Sombre",
+    type: 'manhwa', genre: ['action', 'cultivation', 'fantasy'], status: 'ongoing', rating: 4.5, views: 68000,
+    description: 'Un cultivateur déchu renaît avec le pouvoir de l\'étoile noire.',
+    coverUrl: '', coverBg: 'linear-gradient(135deg,#000005,#0a0020)',
+    updatedAt: '2025-05-29', chapters: []
+  },
+  {
+    id: 'salvos',
+    title: 'Salvos',
+    titleFr: 'Salvos',
+    type: 'manhwa', genre: ['action', 'fantasy', 'isekai'], status: 'ongoing', rating: 4.4, views: 55000,
+    description: 'Une démonesse née dans un donjon découvre le monde extérieur.',
+    coverUrl: '', coverBg: 'linear-gradient(135deg,#1a0010,#2a0030)',
+    updatedAt: '2025-08-22', chapters: []
+  },
+  /* ── ROMANCE ── */
+  {
+    id: 'maid-mine',
+    title: 'How to Make That Maid Mine',
+    titleFr: 'Comment Conquérir Cette Servante',
+    type: 'manhwa', genre: ['romance', 'fantasy', 'drama'], status: 'ongoing', rating: 4.6, views: 91000,
+    description: 'Un noble aristocrate tombe sous le charme de sa nouvelle servante.',
+    coverUrl: '', coverBg: 'linear-gradient(135deg,#1a0010,#300020)',
+    updatedAt: '2026-02-15', chapters: []
+  },
+  {
+    id: 'dying-emperor-doctor',
+    title: "I'm the Dying Emperor's Doctor",
+    titleFr: "Je Suis le Médecin de l'Empereur Mourant",
+    type: 'manhwa', genre: ['romance', 'fantasy', 'historical'], status: 'ongoing', rating: 4.7, views: 102000,
+    description: 'Une jeune médecin soigne un empereur à l\'agonie. Mais les soins deviennent autre chose…',
+    coverUrl: '', coverBg: 'linear-gradient(135deg,#100010,#1e001e)',
+    updatedAt: '2025-05-22', chapters: []
+  },
+  {
+    id: 'wife-thousand-year',
+    title: 'Wife from a Thousand Years',
+    titleFr: "L'Épouse de Mille Ans",
+    type: 'manhwa', genre: ['romance', 'fantasy', 'historical'], status: 'ongoing', rating: 4.5, views: 76000,
+    description: 'Une femme immortelle lie son destin à un homme mortel à travers les âges.',
+    coverUrl: '', coverBg: 'linear-gradient(135deg,#1a1000,#2a2000)',
+    updatedAt: '2025-10-06', chapters: []
+  },
+  {
+    id: 'why-love-me',
+    title: "Why Does Everyone Love Me?!",
+    titleFr: "Pourquoi Tout le Monde M'Aime ?!",
+    type: 'manhwa', genre: ['romance', 'comedy'], status: 'ongoing', rating: 4.4, views: 58000,
+    description: 'Romance comédie sur un homme sans charme apparent soudainement au centre de l\'attention.',
+    coverUrl: '', coverBg: 'linear-gradient(135deg,#1a0018,#280028)',
+    updatedAt: '2025-10-03', chapters: []
+  },
+  /* ── DRAMA ── */
+  {
+    id: 'aristocrat-revenge',
+    title: "Aristocrat's Revenge",
+    titleFr: "La Vengeance de l'Aristocrate",
+    type: 'manhwa', genre: ['drama', 'action', 'historical'], status: 'ongoing', rating: 4.5, views: 66000,
+    description: 'Tombé de grâce, un noble élabore une vengeance froide et méthodique.',
+    coverUrl: '', coverBg: 'linear-gradient(135deg,#0a0a00,#1a1a00)',
+    updatedAt: '2025-05-04', chapters: []
+  },
+  /* ── MANGA ── */
+  {
+    id: 'shiboyugi',
+    title: 'Shiboyugi', titleFr: 'Shiboyugi',
+    type: 'manga', genre: ['action', 'comedy'], status: 'ongoing', rating: 4.2, views: 33000,
+    description: 'Manga action-comédie avec des personnages hauts en couleur.',
+    coverUrl: '', coverBg: 'linear-gradient(135deg,#0a0015,#0f0025)',
+    updatedAt: '2026-01-11', chapters: []
+  },
+  {
+    id: 'princess-survival',
+    title: 'Princess Survival Saga', titleFr: 'Saga de Survie de la Princesse',
+    type: 'manga', genre: ['action', 'fantasy', 'adventure'], status: 'ongoing', rating: 4.4, views: 41000,
+    description: 'Une princesse dans un jeu de survie mortel doit regagner son trône.',
+    coverUrl: '', coverBg: 'linear-gradient(135deg,#001510,#002820)',
+    updatedAt: '2026-01-09', chapters: []
+  },
+  {
+    id: 'awkward-senpai',
+    title: 'My Awkward Senpai', titleFr: 'Mon Senpai Maladroit',
+    type: 'manga', genre: ['romance', 'comedy'], status: 'ongoing', rating: 4.1, views: 29000,
+    description: 'Un senpai terriblement maladroit qui tombe amoureux de son kohai.',
+    coverUrl: '', coverBg: 'linear-gradient(135deg,#1a0a00,#2a1800)',
+    updatedAt: '2026-01-09', chapters: []
+  },
+  /* ── NOVELS ── */
+  {
+    id: 'necromancer-novel',
+    title: 'Necromancer', titleFr: 'Nécromancien',
+    type: 'novel', genre: ['fantasy', 'action'], status: 'ongoing', rating: 4.5, views: 61000,
+    description: 'Un nécromancien solitaire dans un monde en ruines. Dark fantasy atmosphérique.',
+    coverUrl: '', coverBg: 'linear-gradient(135deg,#050005,#0a000f)',
+    updatedAt: '2025-07-08', chapters: []
+  },
+  {
+    id: 'pick-me-up',
+    title: 'Pick Me Up', titleFr: 'Pick Me Up',
+    type: 'novel', genre: ['fantasy', 'isekai', 'comedy'], status: 'ongoing', rating: 4.4, views: 48000,
+    description: 'Transporté dans un jeu de gacha, un joueur vétéran gère ses personnages comme des unités réelles.',
+    coverUrl: '', coverBg: 'linear-gradient(135deg,#00101a,#00203a)',
+    updatedAt: '2025-07-01', chapters: []
+  },
+  {
+    id: 'world-after-novel',
+    title: "Nouvelles du Monde d'Après", titleFr: "Nouvelles du Monde d'Après",
+    type: 'novel', genre: ['fantasy', 'drama'], status: 'ongoing', rating: 4.6, views: 52000,
+    description: "Histoires de survie et d'espoir dans un monde post-apocalyptique reconstruit.",
+    coverUrl: '', coverBg: 'linear-gradient(135deg,#050a00,#0f1a00)',
+    updatedAt: '2025-11-15', chapters: []
+  },
+];
+
+/* ═══════════════════════════════════════════════════════════════
+   SECTION 3 : ÉTAT DE L'APPLICATION (State Manager)
+   ═══════════════════════════════════════════════════════════════ */
+/* Catalogue mutable (peut être étendu en runtime par l'Admin) */
+let CAT = JSON.parse(JSON.stringify(CATALOG));
+
+const S = {
+  page:      'home',
+  seriesId:  null,
+  chapNum:   null,
+  user:      null,    /* { id, name, avatar, role:'admin'|'user', discord:bool } */
+  favorites: [],
+  history:   [],      /* [{ seriesId, chapNum, pageIdx, ts }] */
+  bookmarks: {},      /* { 'sId_cNum': pageIdx } */
+  comments:  {},      /* { key: [{ author, avatar, text, date, likes }] } */
+  rdrMode:   'vert',  /* 'vert' | 'paged' */
+  rdrWidth:  820,
+  rdrBrightness: 100,
+  rdrContrast:   100,
+};
+
+function loadState() {
+  try {
+    const d = JSON.parse(localStorage.getItem('is4_state') || '{}');
+    Object.assign(S, {
+      user: d.user || null,
+      favorites: d.favorites || [],
+      history: d.history || [],
+      bookmarks: d.bookmarks || {},
+      comments: d.comments || {},
+      rdrMode: d.rdrMode || 'vert',
+      rdrWidth: d.rdrWidth || 820,
+      rdrBrightness: d.rdrBrightness || 100,
+      rdrContrast: d.rdrContrast || 100,
+    });
+    /* Charge le catalogue étendu (séries ajoutées via Admin) */
+    const extra = JSON.parse(localStorage.getItem('is4_catalog_extra') || '[]');
+    extra.forEach(s => {
+      const idx = CAT.findIndex(c => c.id === s.id);
+      if (idx >= 0) CAT[idx] = s; else CAT.push(s);
+    });
+  } catch(e) { console.warn('loadState error', e); }
+}
+
+function saveState() {
+  try {
+    localStorage.setItem('is4_state', JSON.stringify({
+      user: S.user, favorites: S.favorites, history: S.history,
+      bookmarks: S.bookmarks, comments: S.comments,
+      rdrMode: S.rdrMode, rdrWidth: S.rdrWidth,
+      rdrBrightness: S.rdrBrightness, rdrContrast: S.rdrContrast,
+    }));
+  } catch(e) {}
+}
+
+function saveCatalogExtra() {
+  try {
+    const baseIds = new Set(CATALOG.map(s => s.id));
+    const modified = CAT.filter(s => {
+      if (!baseIds.has(s.id)) return true;
+      return JSON.stringify(s) !== JSON.stringify(CATALOG.find(b => b.id === s.id));
+    });
+    localStorage.setItem('is4_catalog_extra', JSON.stringify(modified));
+  } catch(e) {}
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SECTION 4 : SUPABASE AUTH — Discord OAuth réel
+   ═══════════════════════════════════════════════════════════════ */
+let _supabase = null;
+
+function initSupabase() {
+  if (!SUPABASE_CONFIG.URL || !SUPABASE_CONFIG.KEY) return;
+  try {
+    _supabase = window.supabase.createClient(SUPABASE_CONFIG.URL, SUPABASE_CONFIG.KEY);
+    /* Écoute les changements d'état auth */
+    _supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session?.user) {
+        await handleSupabaseSession(session);
+      } else if (event === 'SIGNED_OUT') {
+        S.user = null; saveState(); updateAuthUI(); toast('À bientôt !', 'success');
+      }
+    });
+    /* Récupère la session courante (si déjà connecté) */
+    _supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) handleSupabaseSession(session);
+    });
+  } catch(e) { console.warn('Supabase init error', e); }
+}
+
+async function handleSupabaseSession(session) {
+  const u = session.user;
+  const meta = u.user_metadata || {};
+  const discordId = meta.provider_id || meta.sub || u.id;
+  const isAdmin = GLOBAL_CONFIG.ADMIN_DISCORD_IDS.includes(discordId);
+  S.user = {
+    id:      u.id,
+    discordId,
+    name:    meta.full_name || meta.name || meta.custom_claims?.global_name || 'Utilisateur',
+    avatar:  meta.avatar_url || null,
+    role:    isAdmin ? 'admin' : 'user',
+    discord: true,
+    joined:  u.created_at,
+  };
+  saveState(); updateAuthUI(); closeAuthModal();
+  toast(`Bienvenue ${S.user.name} !`, 'success');
+  if (isAdmin) toast('Accès Admin accordé', 'info');
+}
+
+async function loginWithDiscord() {
+  if (!_supabase) {
+    toast('Supabase non configuré — mode démo disponible', 'info');
+    return;
+  }
+  const { error } = await _supabase.auth.signInWithOAuth({
+    provider: 'discord',
+    options: { redirectTo: GLOBAL_CONFIG.SITE_URL }
+  });
+  if (error) toast('Erreur connexion : ' + error.message, 'error');
+}
+
+async function supabaseLogout() {
+  if (_supabase) await _supabase.auth.signOut();
+  S.user = null; saveState(); updateAuthUI();
+  toast('Déconnecté', 'success');
+}
+
+/* Auth locale (mode démo — fonctionne sans Supabase) */
+function loginDemo() {
+  const name = document.getElementById('demo-username')?.value?.trim()
+    || ('Lecteur#' + (Math.random() * 9000 + 1000 | 0));
+  S.user = {
+    id: 'demo_' + Date.now(),
+    name, avatar: null,
+    role: 'user', discord: false,
+    joined: new Date().toISOString(),
+  };
+  saveState(); updateAuthUI(); closeAuthModal();
+  toast(`Bienvenue ${name} !`, 'success');
+}
+
+function logout() {
+  if (_supabase && S.user?.discord) { supabaseLogout(); return; }
+  S.user = null; saveState(); updateAuthUI();
+  toast('Déconnecté', 'success');
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SECTION 5 : ROUTER — Navigation SPA
+   ═══════════════════════════════════════════════════════════════ */
+function navigate(page, opts = {}) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  const el = document.getElementById('page-' + page);
+  if (!el) return;
+  el.classList.add('active');
+  S.page = page;
+  window.scrollTo({ top: 0, behavior: 'instant' });
+  /* Nav indicators */
+  document.querySelectorAll('[data-nav]').forEach(b => b.classList.toggle('active', b.dataset.nav === page));
+  document.querySelectorAll('[data-tab]').forEach(b => b.classList.toggle('active', b.dataset.tab === page));
+  /* Render */
+  if (page === 'home')    renderHome();
+  if (page === 'catalog') renderCatalog();
+  if (page === 'library') renderLibrary();
+  if (page === 'profile') renderProfile();
+  if (page === 'admin')   renderAdmin();
+  updateSEO(page);
+  updateFavBadge();
+}
+
+function filterCatalog(tag) {
+  navigate('catalog');
+  const types = ['manhwa', 'manga', 'novel', 'manhua'];
+  const typeEl = document.getElementById('ft-type');
+  const genreEl = document.getElementById('ft-genre');
+  if (types.includes(tag)) { typeEl && (typeEl.value = tag); genreEl && (genreEl.value = ''); }
+  else                     { genreEl && (genreEl.value = tag); typeEl && (typeEl.value = ''); }
+  renderCatalog();
+}
+
+function updateSEO(page) {
+  if (page === 'series' && S.seriesId) {
+    const s = CAT.find(c => c.id === S.seriesId);
+    if (s) {
+      document.getElementById('meta-title').textContent = `${s.titleFr || s.title} – ${GLOBAL_CONFIG.SITE_NAME}`;
+      document.getElementById('og-title').setAttribute('content', s.title + ' VF – ' + GLOBAL_CONFIG.SITE_NAME);
+    }
+  } else {
+    document.getElementById('meta-title').textContent = `${GLOBAL_CONFIG.SITE_NAME} – Scantrad Français`;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SECTION 6 : HELPERS — Utilitaires réutilisables
+   ═══════════════════════════════════════════════════════════════ */
+function typeLabel(t) { return { manhwa:'Manhwa', manga:'Manga', novel:'Novel', manhua:'Manhua' }[t] || t; }
+function typeClass(t) { return { manhwa:'type-manhwa', manga:'type-manga', novel:'type-novel', manhua:'type-manhua' }[t] || 'type-manhwa'; }
+function statusDot(s) { return { ongoing:'s-ongoing', ended:'s-ended', hiatus:'s-hiatus' }[s] || 's-ended'; }
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function fmtDate(d) {
+  if (!d) return '';
+  const diff = Math.floor((Date.now() - new Date(d)) / 86400000);
+  if (diff === 0) return "Aujourd'hui";
+  if (diff === 1) return "Hier";
+  if (diff < 7)  return diff + 'j';
+  if (diff < 32) return Math.floor(diff / 7) + ' sem';
+  return new Date(d).toLocaleDateString('fr-FR', { day:'numeric', month:'short' });
+}
+
+function isFav(id)        { return S.favorites.includes(id); }
+function lastRead(id)     { return S.history.filter(h => h.seriesId === id).sort((a,b) => b.ts - a.ts)[0]; }
+function isRead(id, n)    { return S.history.some(h => h.seriesId === id && h.chapNum === n); }
+function totalChaps()     { return CAT.reduce((a, s) => a + s.chapters.length, 0); }
+function sortedChaps(s)   { return [...s.chapters].sort((a,b) => b.num - a.num); }
+function latestN(s, n=2)  { return sortedChaps(s).slice(0, n); }
+
+/* Convertit un Google Drive sharing link en URL d'affichage directe.
+   - Format sharing : https://drive.google.com/file/d/FILE_ID/view
+   - Format uc      : https://drive.google.com/uc?id=FILE_ID&export=view
+   Le proxy "uc?id=..." retourne l'image directement sans passer par l'UI Drive. */
+function driveUrl(url) {
+  if (!url) return '';
+  /* Déjà une URL directe non-Drive */
+  if (!url.includes('drive.google.com')) return url;
+  /* Format /file/d/ID/view ou /d/ID */
+  let m = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+  if (m) return `https://drive.google.com/uc?id=${m[1]}&export=view`;
+  /* Format uc?id= déjà correct */
+  if (url.includes('uc?id=')) return url;
+  /* Format id= seul */
+  m = url.match(/id=([a-zA-Z0-9_-]+)/);
+  if (m) return `https://drive.google.com/uc?id=${m[1]}&export=view`;
+  return url;
+}
+
+/* ── Cover placeholder SVG (beau, avec logo ou initiales) ── */
+function makePlaceholder(title, bg, small = false) {
+  const logoUrl = GLOBAL_CONFIG.LOGO_URL;
+  if (logoUrl) {
+    return `
+      <div class="card-cover-placeholder" style="background:${bg}">
+        <img class="ph-logo" src="${logoUrl}" alt="Logo" onerror="this.style.display='none'">
+        <span class="ph-title">${esc(title)}</span>
+      </div>`;
+  }
+  /* Pas de logo : initiales + nom */
+  const initials = title.replace(/[^a-zA-Z\s]/g, '').split(' ').filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase() || 'IS';
+  return `
+    <div class="card-cover-placeholder" style="background:${bg}">
+      <div class="ph-logo-text">${initials}</div>
+      <span class="ph-title">${esc(title.slice(0, small ? 22 : 40))}</span>
+    </div>`;
+}
+
+/* ── Squelette de carte ── */
+function skeletonCard() {
+  return `<div class="skel-card"><div class="skeleton skel-cover"></div><div style="padding:10px 12px 12px"><div class="skeleton skel-line" style="width:82%"></div><div class="skeleton skel-line" style="width:60%"></div></div></div>`;
+}
+
+/* ── Composant Card ── */
+function renderCard(s) {
+  const chaps = latestN(s);
+  const chapHtml = chaps.length > 0
+    ? chaps.map((c, i) => `
+        <button class="chap-row-mini" onclick="event.stopPropagation();openReader('${s.id}',${c.num})">
+          <span>${c.title || 'Ch. ' + c.num}</span>
+          <span class="${i === 0 ? 'chap-mini-new' : 'chap-mini-date'}">${i === 0 ? 'NEW' : fmtDate(c.date)}</span>
+        </button>`).join('')
+    : `<div style="font-size:.65rem;color:var(--muted);text-align:center;padding:5px 0">Bientôt…</div>`;
+
+  const coverInner = s.coverUrl
+    ? `${makePlaceholder(s.titleFr || s.title, s.coverBg || '#131d30', true)}<img class="cover-real" src="${driveUrl(s.coverUrl)}" alt="${esc(s.title)}" loading="lazy" onload="this.classList.add('loaded')" onerror="this.style.display='none'">`
+    : makePlaceholder(s.titleFr || s.title, s.coverBg || '#131d30', true);
+
+  return `
+  <div class="card" onclick="openSeries('${s.id}')">
+    <div class="card-cover">
+      ${coverInner}
+      <span class="card-type ${typeClass(s.type)}">${typeLabel(s.type)}</span>
+      <span class="card-status ${statusDot(s.status)}"></span>
+      <button class="card-fav-btn ${isFav(s.id) ? 'is-fav' : ''}" onclick="event.stopPropagation();toggleFav('${s.id}')" title="Favoris">
+        ${isFav(s.id) ? favIcon(true) : favIcon(false)}
+      </button>
+    </div>
+    <div class="card-body">
+      <div class="card-title" title="${esc(s.title)}">${esc(s.titleFr || s.title)}</div>
+      ${chapHtml}
+    </div>
+  </div>`;
+}
+
+function favIcon(filled) {
+  return `<svg width="13" height="13" fill="${filled ? '#f0a500' : 'none'}" stroke="${filled ? '#f0a500' : '#fff'}" stroke-width="2" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>`;
+}
+
+/* ── Favoris ── */
+function toggleFav(id) {
+  if (!S.user) { showAuthModal(); return; }
+  const i = S.favorites.indexOf(id);
+  if (i >= 0) { S.favorites.splice(i, 1); toast('Retiré des favoris'); }
+  else { S.favorites.push(id); toast('Ajouté aux favoris !', 'success'); }
+  saveState(); updateFavBadge();
+  document.querySelectorAll('.card-fav-btn').forEach(btn => {
+    if (btn.closest('.card')?.getAttribute('onclick')?.includes(id)) {
+      btn.innerHTML = isFav(id) ? favIcon(true) : favIcon(false);
+      btn.classList.toggle('is-fav', isFav(id));
+    }
+  });
+}
+
+function updateFavBadge() {
+  const b = document.getElementById('fav-badge');
+  if (!b) return;
+  b.style.display = S.favorites.length > 0 ? '' : 'none';
+  b.textContent = S.favorites.length;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SECTION 7 : RENDU DES PAGES
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Logo dynamique ── */
+function renderLogo() {
+  const box = document.getElementById('logo-box');
+  if (!box) return;
+  if (GLOBAL_CONFIG.LOGO_URL) {
+    box.innerHTML = `<img src="${GLOBAL_CONFIG.LOGO_URL}" alt="${GLOBAL_CONFIG.SITE_NAME}" onerror="this.parentElement.innerHTML=renderLogoFallback()">`;
+  } else {
+    box.innerHTML = `<div class="logo-placeholder-icon">${GLOBAL_CONFIG.SITE_NAME.slice(0,2).toUpperCase()}</div>`;
+  }
+  /* Nom et sous-titre */
+  ['site-name-hdr','site-name-mob','footer-sitename'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = GLOBAL_CONFIG.SITE_NAME;
+  });
+  document.getElementById('site-sub-hdr') && (document.getElementById('site-sub-hdr').textContent = GLOBAL_CONFIG.SITE_TAGLINE);
+  /* Discord links */
+  ['team-discord-btn','mob-discord-btn','footer-discord-link'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.href = GLOBAL_CONFIG.DISCORD_INVITE;
+  });
+}
+
+/* ── Auth UI ── */
+function updateAuthUI() {
+  const zones = ['hdr-auth-zone', 'mob-auth-zone'];
+  zones.forEach(zid => {
+    const z = document.getElementById(zid);
+    if (!z) return;
+    if (S.user) {
+      const av = S.user.avatar
+        ? `<img src="${S.user.avatar}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;border:2px solid rgba(240,165,0,0.45)">`
+        : `<div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,var(--orange),var(--gold));display:flex;align-items:center;justify-content:center;font-weight:900;font-size:.68rem;color:#06080f">${S.user.name[0].toUpperCase()}</div>`;
+      const adminBtn = S.user.role === 'admin'
+        ? `<button class="btn btn-danger btn-sm" onclick="navigate('admin')">Admin</button>`
+        : '';
+      z.innerHTML = `
+        <div style="display:flex;align-items:center;gap:7px">
+          <div style="display:flex;align-items:center;gap:7px;cursor:pointer" onclick="navigate('profile')">${av}<span style="font-size:.76rem;font-weight:700">${esc(S.user.name)}</span></div>
+          ${adminBtn}
+          <button class="btn-icon" onclick="logout()" title="Déconnexion" style="padding:5px">
+            <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          </button>
+        </div>`;
+    } else {
+      z.innerHTML = `<button class="btn btn-discord btn-sm" onclick="showAuthModal()">Connexion</button>`;
+    }
+  });
+}
+
+/* ── HOME ── */
+let _homeTypeFilter = 'all';
+function renderHome() {
+  document.getElementById('st-series').textContent = CAT.length;
+  document.getElementById('st-chaps').textContent  = totalChaps() + '+';
+
+  /* Hero */
+  const feat = CAT.find(s => s.id === GLOBAL_CONFIG.FEATURED_SERIES_ID) || CAT[0];
+  if (feat) {
+    document.getElementById('hero-title').textContent = feat.titleFr || feat.title;
+    document.getElementById('hero-desc').textContent  = feat.description;
+    document.getElementById('hero-tags').innerHTML = feat.genre.slice(0,3).map(g => `<span class="tag">${g}</span>`).join('') + `<span style="font-size:.7rem;color:var(--muted);margin-left:4px">· ${fmtDate(feat.updatedAt)}</span>`;
+    document.getElementById('hero-actions').innerHTML = `
+      <button class="btn btn-primary" onclick="openSeries('${feat.id}')">Lire la série</button>
+      <button class="btn btn-ghost"   onclick="openSeries('${feat.id}')">Voir les chapitres</button>`;
+    if (feat.coverUrl) {
+      const hbg = document.getElementById('hero-bg');
+      hbg.src = driveUrl(feat.coverUrl);
+      hbg.onload = () => hbg.classList.add('loaded');
+    }
+  }
+
+  /* Ticker */
+  const items = CAT.filter(s => s.chapters.length > 0).map(s => {
+    const c = latestN(s, 1)[0];
+    return c ? `<span class="ticker-item"><strong>${esc(s.titleFr||s.title)}</strong> — Ch.${c.num} · ${fmtDate(c.date)}</span><span style="color:var(--muted);padding:0 8px">·</span>` : '';
+  }).filter(Boolean).join('');
+  document.getElementById('ticker-track').innerHTML = (items||`<span class="ticker-item"><strong>${GLOBAL_CONFIG.SITE_NAME}</strong> — Scantrad FR</span>`) + (items||'');
+
+  /* Grid avec squelettes */
+  const grid = document.getElementById('home-grid');
+  grid.innerHTML = Array(8).fill(skeletonCard()).join('');
+  setTimeout(() => {
+    const data = _homeTypeFilter === 'all' ? CAT : CAT.filter(s => s.type === _homeTypeFilter);
+    grid.innerHTML = data.length > 0 ? data.map(renderCard).join('') : `<div class="empty" style="grid-column:1/-1"><div class="empty-icon" style="font-size:1.8rem">─</div><div class="empty-title">Aucune série</div></div>`;
+  }, 380);
+
+  /* Rankings */
+  const ranked = [...CAT].sort((a,b) => b.rating - a.rating).slice(0,6);
+  document.getElementById('rankings').innerHTML = ranked.map((s, i) => `
+    <div style="display:flex;gap:12px;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;cursor:pointer;transition:border-color var(--t)" onclick="openSeries('${s.id}')" onmouseenter="this.style.borderColor='rgba(240,165,0,.2)'" onmouseleave="this.style.borderColor='var(--border)'">
+      <div style="font-family:'Cinzel',serif;font-size:1.9rem;font-weight:900;min-width:32px;opacity:.14;line-height:1">${i+1}</div>
+      <div style="width:46px;height:63px;border-radius:5px;overflow:hidden;flex-shrink:0;background:${s.coverBg};display:flex;align-items:center;justify-content:center;font-size:.55rem;font-weight:700;color:rgba(255,255,255,0.3)">
+        ${s.coverUrl ? `<img src="${driveUrl(s.coverUrl)}" style="width:100%;height:100%;object-fit:cover" alt="" onerror="this.style.display='none'">` : (GLOBAL_CONFIG.LOGO_URL ? `<img src="${GLOBAL_CONFIG.LOGO_URL}" style="width:80%;height:80%;object-fit:contain;opacity:.35" alt="">` : (s.titleFr||s.title).slice(0,3))}
+      </div>
+      <div style="min-width:0;flex:1">
+        <div style="font-family:'Cinzel',serif;font-size:.73rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(s.titleFr||s.title)}</div>
+        <div style="font-size:.63rem;color:var(--muted);margin:2px 0">${typeLabel(s.type)} · ${s.genre[0]||''}</div>
+        <div style="display:flex;gap:4px;align-items:center">
+          <span style="color:var(--gold);font-size:.68rem">${'★'.repeat(Math.round(s.rating))}${'☆'.repeat(5-Math.round(s.rating))}</span>
+          <span style="font-size:.6rem;color:var(--muted)">${s.rating.toFixed(1)}</span>
+        </div>
+      </div>
+      <div style="font-size:.63rem;font-weight:700;color:var(--green);flex-shrink:0">${(s.views/1000).toFixed(0)}k</div>
+    </div>`).join('');
+}
+
+function homeTypeFilter(type, btn) {
+  _homeTypeFilter = type;
+  document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const data = type === 'all' ? CAT : CAT.filter(s => s.type === type);
+  const grid = document.getElementById('home-grid');
+  if (grid) grid.innerHTML = data.map(renderCard).join('');
+}
+
+/* ── CATALOGUE ── */
+function renderCatalog() {
+  const type   = document.getElementById('ft-type')?.value   || '';
+  const genre  = document.getElementById('ft-genre')?.value  || '';
+  const status = document.getElementById('ft-status')?.value || '';
+  const sort   = document.getElementById('ft-sort')?.value   || 'updated';
+  const q      = (document.getElementById('ft-q')?.value     || '').toLowerCase().trim();
+
+  let data = CAT.filter(s => {
+    if (type   && s.type !== type) return false;
+    if (genre  && !s.genre.includes(genre)) return false;
+    if (status && s.status !== status) return false;
+    if (q && !s.title.toLowerCase().includes(q) && !(s.titleFr||'').toLowerCase().includes(q) && !s.genre.some(g => g.includes(q))) return false;
+    return true;
+  });
+
+  const sortMap = {
+    updated: (a,b) => new Date(b.updatedAt) - new Date(a.updatedAt),
+    popular: (a,b) => b.views - a.views,
+    rating:  (a,b) => b.rating - a.rating,
+    title:   (a,b) => a.title.localeCompare(b.title),
+  };
+  data.sort(sortMap[sort] || sortMap.updated);
+
+  const info = document.getElementById('cat-info');
+  if (info) info.textContent = `${data.length} série${data.length > 1 ? 's' : ''}${q ? ` pour "${q}"` : ''}`;
+
+  const grid = document.getElementById('catalog-grid');
+  if (!grid) return;
+  grid.innerHTML = data.length > 0
+    ? data.map(renderCard).join('')
+    : `<div class="empty" style="grid-column:1/-1"><div class="empty-icon" style="font-size:2rem">─</div><div class="empty-title">Aucun résultat</div><p style="font-size:.8rem;margin-top:6px">Essayez d'autres filtres.</p></div>`;
+}
+
+/* ── PAGE SÉRIE ── */
+function openSeries(id) {
+  const s = CAT.find(c => c.id === id);
+  if (!s) return;
+  S.seriesId = id;
+  navigate('series');
+
+  const lr = lastRead(id);
+  const sorted = sortedChaps(s);
+  const first = sorted[sorted.length - 1];
+  const commentKey = 'series_' + id;
+  const shareUrl = encodeURIComponent(GLOBAL_CONFIG.SITE_URL + '#' + id);
+
+  const coverHtml = s.coverUrl
+    ? `<div style="position:relative;width:100%;height:100%"><div class="series-cover-placeholder"><img src="${GLOBAL_CONFIG.LOGO_URL||''}" alt="" onerror="this.style.display='none'"><span>${esc(s.titleFr||s.title)}</span></div><img src="${driveUrl(s.coverUrl)}" alt="${esc(s.title)}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover" onerror="this.style.display='none'"></div>`
+    : `<div class="series-cover-placeholder" style="background:${s.coverBg}">${GLOBAL_CONFIG.LOGO_URL ? `<img src="${GLOBAL_CONFIG.LOGO_URL}" alt="">` : ''}<span>${esc(s.titleFr||s.title)}</span></div>`;
+
+  document.getElementById('series-content').innerHTML = `
+  <!-- Bannière -->
+  <div style="position:relative;min-height:290px;overflow:hidden">
+    <div style="position:absolute;inset:0;background:${s.coverBg};opacity:0.6"></div>
+    ${s.coverUrl ? `<img src="${driveUrl(s.coverUrl)}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0.12" alt="" onerror="this.style.display='none'">` : ''}
+    <div style="position:absolute;inset:0;background:linear-gradient(to bottom,rgba(6,8,15,.3),rgba(6,8,15,.99));z-index:1"></div>
+    <div class="container" style="position:relative;z-index:2;padding-top:36px;padding-bottom:32px">
+      <button onclick="history.go(-1)||navigate('catalog')" style="font-size:.7rem;color:var(--text2);background:none;border:none;cursor:pointer;margin-bottom:16px;display:flex;align-items:center;gap:5px">
+        ← Retour
+      </button>
+      <div style="display:flex;gap:26px;align-items:flex-start;flex-wrap:wrap">
+        <!-- Couverture -->
+        <div class="series-cover-box" style="background:${s.coverBg}">${coverHtml}</div>
+        <!-- Infos -->
+        <div style="flex:1;min-width:260px">
+          <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:11px">
+            <span class="tag">${typeLabel(s.type)}</span>
+            ${s.genre.slice(0,4).map(g => `<span class="tag">${g}</span>`).join('')}
+            <span class="tag ${s.status==='ongoing'?'':'tag-red'}">${s.status==='ongoing'?'En cours':s.status==='hiatus'?'En pause':'Terminé'}</span>
+          </div>
+          <h1 style="font-family:'Cinzel',serif;font-size:clamp(1.3rem,2.8vw,2.2rem);font-weight:900;line-height:1.15;margin-bottom:4px">${esc(s.title)}</h1>
+          ${s.titleFr && s.titleFr !== s.title ? `<p style="color:var(--gold);font-size:.84rem;font-weight:600;margin-bottom:10px">${esc(s.titleFr)}</p>` : ''}
+          ${s.author ? `<p style="font-size:.72rem;color:var(--muted);margin-bottom:7px">Auteur : <span style="color:var(--text2)">${esc(s.author)}</span></p>` : ''}
+          <div style="color:var(--gold);font-size:.9rem;letter-spacing:1px;margin-bottom:14px">
+            ${'★'.repeat(Math.round(s.rating))}${'☆'.repeat(5-Math.round(s.rating))}
+            <span style="font-family:Raleway;font-size:.8rem;font-weight:700;color:var(--text);margin-left:5px">${s.rating.toFixed(1)}</span>
+            <span style="font-size:.7rem;color:var(--muted);margin-left:4px">· ${(s.views/1000).toFixed(0)}k vues</span>
+          </div>
+          <p style="color:var(--text2);font-size:.85rem;line-height:1.76;margin-bottom:20px;max-width:520px">${esc(s.description)}</p>
+          <div style="display:flex;gap:9px;flex-wrap:wrap;margin-bottom:16px">
+            ${first ? `<button class="btn btn-primary" onclick="openReader('${s.id}',${first.num})">Lire dès le début</button>` : ''}
+            ${lr ? `<button class="btn btn-secondary" onclick="openReader('${s.id}',${lr.chapNum})">Reprendre Ch.${lr.chapNum}</button>` : ''}
+            <button class="btn btn-ghost" onclick="toggleFav('${s.id}')">${isFav(s.id) ? 'Retiré des favoris' : 'Ajouter aux favoris'}</button>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <button class="share-btn" onclick="copyLink()">Copier le lien</button>
+            <a class="share-btn" href="https://twitter.com/intent/tweet?text=${encodeURIComponent((s.titleFr||s.title)+' en VF sur '+GLOBAL_CONFIG.SITE_NAME)}&url=${shareUrl}" target="_blank">Twitter / X</a>
+            <a class="share-btn" href="${GLOBAL_CONFIG.DISCORD_INVITE}" target="_blank">Discord</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- Chapitres + Commentaires -->
+  <div class="container" style="padding-top:32px;padding-bottom:56px">
+    <div style="display:grid;grid-template-columns:1fr 320px;gap:26px;align-items:start" id="series-grid">
+      <!-- Chapitres -->
+      <div>
+        <div class="section-hd" style="margin-bottom:13px">
+          <span class="section-title">Chapitres (${s.chapters.length})</span>
+          ${s.chapters.length > 0 ? `<button class="sort-btn" id="chap-sort-btn" onclick="toggleChapSort('${s.id}')">Ordre ⇅</button>` : ''}
+        </div>
+        <div id="chap-list-${id}">
+          ${s.chapters.length === 0 ? `
+            <div class="empty">
+              <div class="empty-icon" style="font-size:1.8rem">─</div>
+              <div class="empty-title">Chapitres en préparation</div>
+              <p style="font-size:.8rem;color:var(--muted);margin-top:6px;margin-bottom:16px">Rejoignez le Discord pour être notifié !</p>
+              <a href="${GLOBAL_CONFIG.DISCORD_INVITE}" target="_blank" class="btn btn-discord btn-sm" style="margin:0 auto">Discord</a>
+            </div>` : renderChapList(s)}
+        </div>
+      </div>
+      <!-- Commentaires -->
+      <div id="comments-col">
+        <div class="section-hd" style="margin-bottom:13px"><span class="section-title">Commentaires</span></div>
+        ${renderComments(commentKey)}
+      </div>
+    </div>
+  </div>`;
+
+  /* Responsive */
+  if (window.innerWidth < 900) {
+    const g = document.getElementById('series-grid');
+    if (g) g.style.gridTemplateColumns = '1fr';
+  }
+}
+
+let _chapSortAsc = {};
+function toggleChapSort(id) {
+  _chapSortAsc[id] = !_chapSortAsc[id];
+  const s = CAT.find(c => c.id === id);
+  if (s) document.getElementById(`chap-list-${id}`).innerHTML = renderChapList(s, _chapSortAsc[id]);
+}
+
+function renderChapList(s, asc = false) {
+  const sorted = [...s.chapters].sort((a,b) => asc ? a.num - b.num : b.num - a.num);
+  return `<div class="chapter-list">` + sorted.map((c, i) => {
+    const read = isRead(s.id, c.num);
+    const isLatest = !asc && i === 0;
+    const hasPages = c.pages && c.pages.length > 0;
+    return `
+    <div class="chap-row ${read ? 'read-row' : ''} ${isLatest ? 'latest-row' : ''}" onclick="openReader('${s.id}',${c.num})">
+      <div>
+        <div class="chap-num">${esc(c.title || 'Chapitre ' + c.num)}</div>
+        <div class="chap-date">${fmtDate(c.date)}${hasPages ? ` · ${c.pages.length} pages` : ''}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        ${isLatest && !read ? '<span class="badge-new">NEW</span>' : ''}
+        ${read ? '<span class="badge-read">Lu</span>' : ''}
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="color:var(--muted)"><path d="M9 18l6-6-6-6"/></svg>
+      </div>
+    </div>`;
+  }).join('') + `</div>`;
+}
+
+function copyLink() {
+  navigator.clipboard?.writeText(window.location.href)
+    .then(() => toast('Lien copié !', 'success'))
+    .catch(() => toast('Impossible de copier', 'error'));
+}
+
+/* ── COMMENTAIRES ── */
+function renderComments(key) {
+  const comments = S.comments[key] || [];
+  const form = S.user ? `
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <div class="avatar-xs">${S.user.avatar ? `<img src="${S.user.avatar}">` : S.user.name[0].toUpperCase()}</div>
+      <div style="flex:1">
+        <textarea class="comment-ta" id="cta-${key}" placeholder="Ton commentaire…" rows="2"></textarea>
+        <button class="btn btn-primary btn-sm" onclick="postComment('${key}')" style="margin-top:6px">Envoyer</button>
+      </div>
+    </div>`
+  : `<div style="text-align:center;padding:14px;background:rgba(240,165,0,.04);border-radius:7px;margin-bottom:12px"><p style="font-size:.78rem;color:var(--muted);margin-bottom:8px">Connecte-toi pour commenter</p><button class="btn btn-discord btn-sm" onclick="showAuthModal()">Se connecter</button></div>`;
+
+  const list = comments.length === 0
+    ? `<p style="font-size:.78rem;color:var(--muted);text-align:center;padding:18px 0">Soyez le premier à commenter !</p>`
+    : comments.map((c, i) => `
+      <div style="border-top:1px solid var(--border);padding-top:12px;margin-top:12px">
+        <div style="display:flex;gap:8px">
+          <div class="avatar-xs">${c.avatar ? `<img src="${c.avatar}">` : esc(c.author[0].toUpperCase())}</div>
+          <div style="flex:1">
+            <div style="display:flex;align-items:center;gap:7px;margin-bottom:3px">
+              <span style="font-size:.78rem;font-weight:700">${esc(c.author)}</span>
+              <span class="comment-meta">${fmtDate(c.date)}</span>
+            </div>
+            <p class="comment-body">${esc(c.text)}</p>
+            <button class="like-btn ${c.liked?'liked':''}" onclick="likeComment('${key}',${i},this)">
+              <svg width="11" height="11" fill="${c.liked?'currentColor':'none'}" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+              ${c.likes || 0}
+            </button>
+          </div>
+        </div>
+      </div>`).join('');
+
+  return `<div class="comment-box"><div>${form}</div><div id="clist-${key}">${list}</div></div>`;
+}
+
+function postComment(key) {
+  if (!S.user) { showAuthModal(); return; }
+  const ta = document.getElementById('cta-' + key);
+  const text = ta?.value?.trim();
+  if (!text) { toast('Écris quelque chose !', 'error'); return; }
+  if (!S.comments[key]) S.comments[key] = [];
+  S.comments[key].unshift({
+    author: S.user.name, avatar: S.user.avatar, text,
+    date: new Date().toISOString().split('T')[0], likes: 0, liked: false,
+  });
+  saveState();
+  if (ta) ta.value = '';
+  const list = document.getElementById('clist-' + key);
+  if (list) {
+    const c = S.comments[key][0];
+    list.insertAdjacentHTML('afterbegin', `
+    <div style="border-top:1px solid var(--border);padding-top:12px;margin-top:12px">
+      <div style="display:flex;gap:8px">
+        <div class="avatar-xs">${c.avatar ? `<img src="${c.avatar}">` : esc(c.author[0].toUpperCase())}</div>
+        <div style="flex:1">
+          <div style="display:flex;align-items:center;gap:7px;margin-bottom:3px">
+            <span style="font-size:.78rem;font-weight:700">${esc(c.author)}</span>
+            <span class="comment-meta">à l'instant</span>
+          </div>
+          <p class="comment-body">${esc(c.text)}</p>
+        </div>
+      </div>
+    </div>`);
+  }
+  toast('Commentaire publié !', 'success');
+}
+
+function likeComment(key, i, btn) {
+  if (!S.user) { showAuthModal(); return; }
+  const c = (S.comments[key]||[])[i];
+  if (!c) return;
+  c.liked = !c.liked;
+  c.likes = (c.likes||0) + (c.liked ? 1 : -1);
+  saveState();
+  btn.innerHTML = `<svg width="11" height="11" fill="${c.liked?'currentColor':'none'}" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg> ${c.likes}`;
+  btn.classList.toggle('liked', c.liked);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SECTION 8 : LECTEUR — Reader Next-Gen
+   ═══════════════════════════════════════════════════════════════ */
+let _rdrPages  = [];
+let _rdrPage   = 0;
+let _rdrSeries = null;
+let _rdrChap   = null;
+let _preloaded = {};
+let _rdrUIShowing = true;
+
+function openReader(seriesId, chapNum) {
+  const s = CAT.find(c => c.id === seriesId);
+  if (!s) return;
+  const chap = s.chapters.find(c => c.num === chapNum);
+  if (!chap) { toast('Chapitre introuvable', 'error'); return; }
+
+  _rdrSeries = s;
+  _rdrChap   = chap;
+  S.seriesId = seriesId;
+  S.chapNum  = chapNum;
+
+  /* Enregistrement historique */
+  S.history = S.history.filter(h => !(h.seriesId === seriesId && h.chapNum === chapNum));
+  S.history.unshift({ seriesId, chapNum, pageIdx: S.bookmarks[`${seriesId}_${chapNum}`]||0, ts: Date.now() });
+  if (S.history.length > 200) S.history = S.history.slice(0, 200);
+  saveState();
+
+  /* Pages — conversion Drive si nécessaire */
+  _rdrPages = (chap.pages || []).map(driveUrl);
+  _rdrPage  = S.bookmarks[`${seriesId}_${chapNum}`] || 0;
+  _preloaded = {};
+
+  navigate('reader');
+  buildReader(s, chap);
+}
+
+function buildReader(s, chap) {
+  const sorted    = sortedChaps(s).reverse(); /* ascendant */
+  const chapIdx   = sorted.findIndex(c => c.num === chap.num);
+  const prevChap  = sorted[chapIdx - 1];
+  const nextChap  = sorted[chapIdx + 1];
+  const pages     = _rdrPages;
+  const hasPages  = pages.length > 0;
+
+  document.getElementById('reader-root').innerHTML = `
+  <div id="reader-wrap">
+    <!-- ── Header ── -->
+    <div class="rdr-ui rdr-header" id="rdr-hdr">
+      <button onclick="event.stopPropagation();navigate('series')" class="btn btn-ghost btn-sm" style="flex-shrink:0">← Retour</button>
+      <div style="flex:1;text-align:center;min-width:0;padding:0 8px">
+        <div style="font-family:'Cinzel',serif;font-size:.7rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(s.titleFr||s.title)}</div>
+        <div style="font-size:.58rem;color:var(--muted)">${esc(chap.title||'Chapitre '+chap.num)}</div>
+      </div>
+      <div style="display:flex;gap:6px;flex-shrink:0">
+        <button onclick="event.stopPropagation();document.getElementById('rdr-settings').classList.toggle('open')" class="btn-icon" title="Paramètres">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+        </button>
+      </div>
+    </div>
+    <!-- ── Barre de progression ── -->
+    <div class="rdr-ui rdr-prog-bar" id="rdr-prog-bar" style="top:50px">
+      <div class="rdr-prog-fill" id="rdr-prog-fill"></div>
+    </div>
+    <!-- ── Mode Webtoon (vertical) ── -->
+    <div id="rdr-vert" style="padding-top:53px;padding-bottom:53px;filter:brightness(${S.rdrBrightness}%) contrast(${S.rdrContrast}%)">
+      ${hasPages ? pages.map((url, i) => `
+        <div style="width:100%;max-width:${S.rdrWidth}px;margin:0 auto;position:relative" id="pwrap-${i}">
+          <div class="page-skel skeleton" id="pskel-${i}" style="width:100%;height:280px"></div>
+          <img id="pimg-${i}" src="${url}" alt="Page ${i+1}"
+               style="width:100%;height:auto;display:none"
+               onload="onPageLoad(${i})"
+               onerror="onPageError(${i})">
+        </div>`).join('') : renderNoPagesMessage(s, chap)}
+    </div>
+    <!-- ── Mode Page par page ── -->
+    <div id="rdr-paged" style="min-height:100vh;align-items:center;justify-content:center;padding:53px 0;filter:brightness(${S.rdrBrightness}%) contrast(${S.rdrContrast}%);display:none">
+      ${hasPages ? `
+      <div class="paged-nav left" onclick="event.stopPropagation();rdrPageBack()"><div class="paged-nav-hint">‹</div></div>
+      <img id="paged-img" src="" alt="" style="max-height:calc(100vh - 106px);max-width:min(${S.rdrWidth}px,100vw);object-fit:contain">
+      <div class="paged-nav right" onclick="event.stopPropagation();rdrPageFwd()"><div class="paged-nav-hint">›</div></div>` : ''}
+    </div>
+    <!-- ── Footer ── -->
+    <div class="rdr-ui rdr-footer" id="rdr-ftr">
+      <button class="btn btn-ghost btn-sm" ${!prevChap?'disabled':''} style="opacity:${prevChap?1:.3}"
+        onclick="event.stopPropagation();${prevChap?`openReader('${s.id}',${prevChap.num})`:''}">
+        ← ${prevChap?'Ch.'+prevChap.num:'Début'}
+      </button>
+      <div style="text-align:center;flex:1;font-size:.7rem;color:var(--muted)">
+        <div id="rdr-page-ind">${hasPages ? `Page 1/${pages.length}` : 'Drive'}</div>
+        <div style="font-size:.58rem;margin-top:1px">${esc(chap.title||'Ch.'+chap.num)}</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" ${!nextChap?'disabled':''} style="opacity:${nextChap?1:.3}"
+        onclick="event.stopPropagation();${nextChap?`openReader('${s.id}',${nextChap.num})`:''}">
+        ${nextChap?'Ch.'+nextChap.num:'Fin'} →
+      </button>
+    </div>
+    <!-- ── Settings Panel ── -->
+    <div id="rdr-settings" class="glass-strong">
+      <div class="sg-block">
+        <div class="sg-title">Mode lecture</div>
+        <div class="mode-btns">
+          <button class="mode-btn ${S.rdrMode==='vert'?'active':''}" onclick="setRdrMode('vert')">Webtoon</button>
+          <button class="mode-btn ${S.rdrMode==='paged'?'active':''}" onclick="setRdrMode('paged')">Page</button>
+        </div>
+      </div>
+      <div class="sg-block">
+        <div class="sg-title">Largeur</div>
+        <div class="w-presets">
+          ${[600,820,1000,1200].map(w => `<div class="w-preset ${S.rdrWidth===w?'active':''}" onclick="setRdrWidth(${w})">${w===600?'Étroit':w===820?'Normal':w===1000?'Large':'Plein'}</div>`).join('')}
+        </div>
+      </div>
+      <div class="sg-block">
+        <div class="sg-title">Luminosité <span id="sg-bright-val">${S.rdrBrightness}%</span></div>
+        <input type="range" min="30" max="130" value="${S.rdrBrightness}" oninput="setRdrBrightness(this.value)">
+      </div>
+      <div class="sg-block">
+        <div class="sg-title">Contraste <span id="sg-contrast-val">${S.rdrContrast}%</span></div>
+        <input type="range" min="50" max="150" value="${S.rdrContrast}" oninput="setRdrContrast(this.value)">
+      </div>
+      <div class="sg-block" style="border:none;padding-bottom:0">
+        <div class="sg-title">Fond</div>
+        <div style="display:flex;gap:7px">
+          ${['#000','#0d0d0d','#1c1c1c','#fff'].map(c => `<div onclick="document.getElementById('reader-wrap').style.background='${c}'" style="width:24px;height:24px;border-radius:50%;background:${c};border:2px solid rgba(255,255,255,.18);cursor:pointer"></div>`).join('')}
+        </div>
+      </div>
+    </div>
+  </div>`;
+
+  /* Appliquer mode + démarrer */
+  applyRdrMode();
+  if (hasPages) {
+    preloadPages(0, 4);
+    if (S.rdrMode === 'paged') setPaged(_rdrPage);
+    initRdrScroll();
+  }
+  /* Click pour masquer/afficher UI */
+  document.getElementById('reader-wrap').addEventListener('click', e => {
+    if (e.target.tagName === 'BUTTON' || e.target.closest('button') || e.target.tagName === 'A') return;
+    _rdrUIShowing = !_rdrUIShowing;
+    document.querySelectorAll('.rdr-ui').forEach(el => el.classList.toggle('rdr-hidden', !_rdrUIShowing));
+  });
+}
+
+function renderNoPagesMessage(s, chap) {
+  return `
+  <div style="max-width:640px;margin:0 auto;padding:28px 20px;text-align:center">
+    <div style="background:rgba(240,165,0,.06);border:1px solid rgba(240,165,0,.18);border-radius:12px;padding:22px;margin-bottom:18px">
+      <div style="font-size:1.8rem;margin-bottom:10px">─</div>
+      <div style="font-family:'Cinzel',serif;font-size:.9rem;color:var(--gold);margin-bottom:7px">${esc(chap.title||'Chapitre '+chap.num)}</div>
+      <p style="font-size:.78rem;color:var(--muted);margin-bottom:16px;line-height:1.6">
+        Les images de ce chapitre n'ont pas encore été ajoutées.<br>
+        ${S.user?.role === 'admin' ? 'Utilisez le Panel Admin pour ajouter les URLs des pages.' : 'Revenez plus tard ou consultez le Discord !'}
+      </p>
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+        ${S.user?.role === 'admin' ? `<button class="btn btn-primary btn-sm" onclick="navigate('admin')">Admin Panel</button>` : ''}
+        <a href="${GLOBAL_CONFIG.DISCORD_INVITE}" target="_blank" class="btn btn-discord btn-sm">Discord</a>
+      </div>
+    </div>
+  </div>`;
+}
+
+function onPageLoad(i) {
+  const skel = document.getElementById('pskel-' + i);
+  const img  = document.getElementById('pimg-' + i);
+  if (skel) skel.style.display = 'none';
+  if (img)  img.style.display = 'block';
+  /* Smart preload : 4 images suivantes */
+  preloadPages(i + 1, 4);
+}
+
+function onPageError(i) {
+  const skel = document.getElementById('pskel-' + i);
+  if (skel) {
+    skel.style.animation = 'none';
+    skel.style.background = '#120000';
+    skel.style.display = 'flex';
+    skel.style.alignItems = 'center';
+    skel.style.justifyContent = 'center';
+    skel.style.color = '#f87171';
+    skel.style.fontSize = '.75rem';
+    skel.innerHTML = 'Image non disponible';
+  }
+}
+
+/* Smart preload : charge les N prochaines images en arrière-plan */
+function preloadPages(from, count) {
+  for (let i = from; i < Math.min(from + count, _rdrPages.length); i++) {
+    if (_preloaded[i]) continue;
+    _preloaded[i] = true;
+    const img = new Image();
+    img.src = _rdrPages[i];
+    img.onload = () => {
+      const el = document.getElementById('pimg-' + i);
+      if (el && !el.src) el.src = _rdrPages[i];
+    };
+  }
+}
+
+/* Scroll tracking → barre de progression + marque-page */
+function initRdrScroll() {
+  const onScroll = () => {
+    const { scrollTop, scrollHeight, clientHeight } = document.documentElement;
+    const pct = scrollHeight <= clientHeight ? 100 : (scrollTop / (scrollHeight - clientHeight)) * 100;
+    const fill = document.getElementById('rdr-prog-fill');
+    if (fill) fill.style.width = pct.toFixed(1) + '%';
+    /* Page courante */
+    let curPage = 0;
+    _rdrPages.forEach((_, i) => {
+      const pw = document.getElementById('pwrap-' + i);
+      if (pw && pw.getBoundingClientRect().top < window.innerHeight * 0.55) curPage = i;
+    });
+    _rdrPage = curPage;
+    const ind = document.getElementById('rdr-page-ind');
+    if (ind) ind.textContent = `Page ${curPage+1}/${_rdrPages.length}`;
+    /* Marque-page */
+    if (S.seriesId && S.chapNum) {
+      S.bookmarks[`${S.seriesId}_${S.chapNum}`] = curPage;
+      saveState();
+    }
+  };
+  window.addEventListener('scroll', onScroll, { passive: true });
+}
+
+/* Mode paged */
+function setPaged(i) {
+  _rdrPage = Math.max(0, Math.min(i, _rdrPages.length - 1));
+  const img = document.getElementById('paged-img');
+  if (img) img.src = _rdrPages[_rdrPage];
+  const ind = document.getElementById('rdr-page-ind');
+  if (ind) ind.textContent = `Page ${_rdrPage+1}/${_rdrPages.length}`;
+  const fill = document.getElementById('rdr-prog-fill');
+  if (fill) fill.style.width = ((_rdrPage / Math.max(_rdrPages.length-1, 1)) * 100).toFixed(1) + '%';
+  preloadPages(_rdrPage + 1, 4);
+  if (S.seriesId && S.chapNum) {
+    S.bookmarks[`${S.seriesId}_${S.chapNum}`] = _rdrPage;
+    saveState();
+  }
+}
+function rdrPageFwd()  { setPaged(_rdrPage + 1); }
+function rdrPageBack() { setPaged(_rdrPage - 1); }
+
+function setRdrMode(m) {
+  S.rdrMode = m; saveState(); applyRdrMode();
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('active', b.textContent.trim() === (m === 'vert' ? 'Webtoon' : 'Page')));
+}
+function applyRdrMode() {
+  const v = document.getElementById('rdr-vert');
+  const p = document.getElementById('rdr-paged');
+  if (!v || !p) return;
+  if (S.rdrMode === 'vert') {
+    v.style.display = 'flex'; v.style.flexDirection = 'column'; v.style.alignItems = 'center';
+    p.style.display = 'none';
+  } else {
+    v.style.display = 'none'; p.style.display = 'flex';
+    if (_rdrPages.length > 0) setPaged(_rdrPage);
+  }
+}
+function setRdrWidth(w) {
+  S.rdrWidth = w; saveState();
+  document.querySelectorAll('.w-preset').forEach((b, i) => b.classList.toggle('active', [600,820,1000,1200][i] === w));
+  document.querySelectorAll('#rwrap > div img').forEach(img => img.style.maxWidth = `min(${w}px,100vw)`);
+  const vert = document.getElementById('rdr-vert');
+  if (vert) [...vert.children].forEach(el => el.style.maxWidth = w + 'px');
+  const pi = document.getElementById('paged-img');
+  if (pi) pi.style.maxWidth = `min(${w}px,100vw)`;
+}
+function setRdrBrightness(v) {
+  S.rdrBrightness = parseInt(v); saveState();
+  const el = document.getElementById('sg-bright-val');
+  if (el) el.textContent = v + '%';
+  const filter = `brightness(${S.rdrBrightness}%) contrast(${S.rdrContrast}%)`;
+  ['rdr-vert','rdr-paged'].forEach(id => { const e = document.getElementById(id); if (e) e.style.filter = filter; });
+}
+function setRdrContrast(v) {
+  S.rdrContrast = parseInt(v); saveState();
+  const el = document.getElementById('sg-contrast-val');
+  if (el) el.textContent = v + '%';
+  const filter = `brightness(${S.rdrBrightness}%) contrast(${S.rdrContrast}%)`;
+  ['rdr-vert','rdr-paged'].forEach(id => { const e = document.getElementById(id); if (e) e.style.filter = filter; });
+}
+
+/* Clavier */
+document.addEventListener('keydown', e => {
+  if (S.page !== 'reader') return;
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown') rdrPageFwd();
+  if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   rdrPageBack();
+  if (e.key === 'Escape') navigate('series');
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   SECTION 9 : BIBLIOTHÈQUE & PROFIL
+   ═══════════════════════════════════════════════════════════════ */
+function renderLibrary() { showLibTab(S.libTab || 'favorites'); }
+
+function showLibTab(tab, btn) {
+  S.libTab = tab;
+  if (btn) { document.querySelectorAll('.lib-tab').forEach(b => b.classList.remove('active')); btn.classList.add('active'); }
+  const el = document.getElementById('lib-content');
+  if (!el) return;
+
+  if (tab === 'favorites') {
+    const favs = CAT.filter(s => S.favorites.includes(s.id));
+    el.innerHTML = favs.length > 0
+      ? `<div class="cards-grid">${favs.map(renderCard).join('')}</div>`
+      : `<div class="empty"><div class="empty-title">Aucun favori</div><p style="font-size:.8rem;margin-top:8px">Appuie sur le cœur d'une série pour la suivre !</p></div>`;
+  }
+  else if (tab === 'history') {
+    const h = S.history.slice(0, 40);
+    el.innerHTML = h.length > 0
+      ? h.map(item => {
+          const s = CAT.find(c => c.id === item.seriesId);
+          if (!s) return '';
+          const chap = s.chapters.find(c => c.num === item.chapNum);
+          const pct  = chap?.pages?.length > 0 ? Math.round(((item.pageIdx||0)/chap.pages.length)*100) : 0;
+          return `
+          <div class="hist-item" onclick="openReader('${s.id}',${item.chapNum})">
+            <div class="hist-thumb" style="background:${s.coverBg}">
+              ${s.coverUrl ? `<img src="${driveUrl(s.coverUrl)}" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none'" alt="">` : (GLOBAL_CONFIG.LOGO_URL ? `<img src="${GLOBAL_CONFIG.LOGO_URL}" style="width:80%;height:80%;object-fit:contain;opacity:.4" alt="">` : '')}
+            </div>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:.78rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(s.titleFr||s.title)}</div>
+              <div style="font-size:.66rem;color:var(--muted)">Ch. ${item.chapNum} · ${fmtDate(new Date(item.ts).toISOString().split('T')[0])}</div>
+              ${chap?.pages?.length > 0 ? `<div class="progress-bar-thin" style="margin-top:5px"><div class="progress-bar-fill" style="width:${pct}%"></div></div>` : ''}
+            </div>
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="color:var(--muted);flex-shrink:0"><path d="M9 18l6-6-6-6"/></svg>
+          </div>`;
+        }).join('')
+      : `<div class="empty"><div class="empty-title">Aucun historique</div><p style="font-size:.8rem;margin-top:8px">Commence à lire !</p></div>`;
+  }
+  else if (tab === 'reading') {
+    const inProgress = CAT.filter(s => {
+      const lr = lastRead(s.id);
+      if (!lr) return false;
+      const maxChap = Math.max(...s.chapters.map(c => c.num), 0);
+      return lr.chapNum < maxChap;
+    });
+    el.innerHTML = inProgress.length > 0
+      ? `<div class="cards-grid">${inProgress.map(renderCard).join('')}</div>`
+      : `<div class="empty"><div class="empty-title">Tout à jour !</div><p style="font-size:.8rem;margin-top:8px">Tu es à jour sur toutes tes séries.</p></div>`;
+  }
+}
+
+function renderProfile() {
+  const el = document.getElementById('profile-root');
+  if (!el) return;
+  if (!S.user) {
+    el.innerHTML = `
+    <div style="max-width:360px;margin:60px auto;text-align:center">
+      <div style="font-size:2rem;margin-bottom:14px">─</div>
+      <div style="font-family:'Cinzel',serif;font-size:1.1rem;margin-bottom:8px">Non connecté</div>
+      <p style="font-size:.82rem;color:var(--muted);margin-bottom:20px">Connecte-toi pour accéder à ton profil.</p>
+      <button class="btn btn-discord" style="width:100%;justify-content:center" onclick="showAuthModal()">Se connecter</button>
+    </div>`; return;
+  }
+  const totalComments = Object.values(S.comments).flat().filter(c => c.author === S.user.name).length;
+  el.innerHTML = `
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-xl);padding:24px;margin-bottom:22px;display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap">
+    <div style="width:80px;height:80px;border-radius:50%;border:3px solid rgba(240,165,0,0.4);overflow:hidden;background:linear-gradient(135deg,var(--orange),var(--gold));display:flex;align-items:center;justify-content:center;flex-shrink:0">
+      ${S.user.avatar ? `<img src="${S.user.avatar}" style="width:100%;height:100%;object-fit:cover" alt="">` : `<span style="font-family:'Cinzel',serif;font-size:1.7rem;font-weight:900;color:#06080f">${S.user.name[0].toUpperCase()}</span>`}
+    </div>
+    <div style="flex:1">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:4px">
+        <span style="font-family:'Cinzel',serif;font-size:1.2rem;font-weight:900">${esc(S.user.name)}</span>
+        <span style="font-size:.6rem;padding:2px 9px;${S.user.role==='admin' ? 'background:rgba(220,38,38,.12);border:1px solid rgba(220,38,38,.28);color:#fca5a5' : 'background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.22);color:#93c5fd'};border-radius:3px;font-weight:700">${S.user.role === 'admin' ? 'Admin' : 'Lecteur'}</span>
+        ${S.user.discord ? `<span style="font-size:.58rem;padding:2px 8px;background:rgba(88,101,242,.1);border:1px solid rgba(88,101,242,.22);color:#a5b4fc;border-radius:3px;font-weight:700">Discord</span>` : ''}
+      </div>
+      <p style="font-size:.72rem;color:var(--muted);margin-bottom:14px">Membre depuis ${fmtDate((S.user.joined||'').split('T')[0])}</p>
+      <div class="stat-grid" style="max-width:360px">
+        <div class="stat-box"><div class="stat-n grad-gold">${S.history.length}</div><div class="stat-l">Chapitres lus</div></div>
+        <div class="stat-box"><div class="stat-n grad-gold">${S.favorites.length}</div><div class="stat-l">Favoris</div></div>
+        <div class="stat-box"><div class="stat-n grad-gold">${totalComments}</div><div class="stat-l">Commentaires</div></div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:7px">
+      ${S.user.role === 'admin' ? `<button class="btn btn-danger btn-sm" onclick="navigate('admin')">Admin Panel</button>` : ''}
+      <button class="btn btn-ghost btn-sm" onclick="navigate('library')">Bibliothèque</button>
+      <button class="btn btn-ghost btn-sm" onclick="logout()">Déconnexion</button>
+    </div>
+  </div>`;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SECTION 10 : ADMIN PANEL — Générateur JSON
+   ═══════════════════════════════════════════════════════════════
+   L'admin colle ses URLs d'images, remplit le formulaire,
+   puis clique "Générer le JSON" pour obtenir le bloc à coller
+   dans la variable CATALOG ci-dessus.
+   ═══════════════════════════════════════════════════════════════ */
+let _admAuthed = false;
+
+function renderAdmin() {
+  if (!_admAuthed) { renderAdminLogin(); return; }
+  /* Render tabs + content */
+  const root = document.getElementById('admin-root');
+  root.innerHTML = `
+  <div class="adm-tabs">
+    <button class="adm-tab active" id="at-list" onclick="admTab('list',this)">Séries (${CAT.length})</button>
+    <button class="adm-tab" id="at-gen-series" onclick="admTab('gen-series',this)">Nouvelle série</button>
+    <button class="adm-tab" id="at-gen-chapter" onclick="admTab('gen-chapter',this)">Nouveau chapitre</button>
+    <button class="adm-tab" id="at-guide" onclick="admTab('guide',this)">Guide</button>
+  </div>
+  <div id="adm-content"></div>`;
+  admTab('list');
+}
+
+function renderAdminLogin() {
+  const root = document.getElementById('admin-root');
+  root.innerHTML = `
+  <div style="max-width:360px;margin:40px auto;text-align:center">
+    <div style="font-size:2rem;margin-bottom:14px">─</div>
+    <h3 style="font-family:'Cinzel',serif;font-size:1.1rem;color:var(--gold);margin-bottom:12px">Accès Administrateur</h3>
+    <p style="font-size:.76rem;color:var(--muted);margin-bottom:18px;line-height:1.6">Connectez-vous avec Discord (si configuré) et votre ID Discord doit être dans <code style="color:var(--gold)">ADMIN_DISCORD_IDS</code>.<br>Sinon, utilisez le mot de passe local ci-dessous.</p>
+    <div class="form-group">
+      <input type="password" class="form-input" id="adm-pw" placeholder="Mot de passe admin…" onkeydown="if(event.key==='Enter')checkAdmAuth()">
+    </div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="checkAdmAuth()">Accéder</button>
+  </div>`;
+}
+
+function checkAdmAuth() {
+  const pw = document.getElementById('adm-pw')?.value;
+  if (pw === GLOBAL_CONFIG.ADMIN_LOCAL_PASSWORD) {
+    _admAuthed = true;
+    if (S.user) S.user.role = 'admin';
+    saveState(); updateAuthUI();
+    toast('Accès Admin accordé !', 'success');
+    renderAdmin();
+  } else {
+    toast('Mot de passe incorrect', 'error');
+  }
+}
+
+function admTab(tab, btn) {
+  if (btn) {
+    document.querySelectorAll('.adm-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+  const el = document.getElementById('adm-content');
+  if (!el) return;
+
+  /* ── Liste des séries ── */
+  if (tab === 'list') {
+    el.innerHTML = `
+    <div style="display:flex;gap:9px;margin-bottom:14px;flex-wrap:wrap">
+      <button class="btn btn-secondary btn-sm" onclick="exportCatalogJSON()">Exporter catalog.json</button>
+      <button class="btn btn-ghost btn-sm" onclick="importCatalogJSON()">Importer catalog.json</button>
+    </div>
+    ${CAT.map(s => `
+    <div class="adm-series-row">
+      <div style="width:34px;height:48px;border-radius:4px;overflow:hidden;background:${s.coverBg};flex-shrink:0;display:flex;align-items:center;justify-content:center">
+        ${s.coverUrl ? `<img src="${driveUrl(s.coverUrl)}" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none'" alt="">` : ''}
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:.78rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(s.titleFr||s.title)}</div>
+        <div style="font-size:.63rem;color:var(--muted)">${typeLabel(s.type)} · ${s.chapters.length} chap · ${s.status}</div>
+      </div>
+      <div style="display:flex;gap:5px;flex-shrink:0">
+        <button class="btn btn-secondary btn-xs" onclick="admQuickChapter('${s.id}')">+ Ch.</button>
+        <button class="btn btn-ghost btn-xs" onclick="admEditSeries('${s.id}')">Éditer</button>
+        <button class="btn btn-danger btn-xs" onclick="admDeleteSeries('${s.id}')">Suppr.</button>
+      </div>
+    </div>`).join('')}`;
+  }
+
+  /* ── Générateur : nouvelle série ── */
+  else if (tab === 'gen-series') {
+    el.innerHTML = `
+    <div style="max-width:680px">
+      <p style="font-size:.78rem;color:var(--muted);margin-bottom:18px;line-height:1.65;border-left:3px solid var(--gold);padding-left:12px">
+        Remplissez ce formulaire. Cliquez ensuite <strong style="color:var(--gold)">Générer le JSON</strong> → copiez le bloc généré et collez-le dans la variable <code style="color:var(--gold)">CATALOG</code> au début du script (Section 2) dans votre éditeur de code. C'est tout !
+      </p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:13px">
+        <div class="form-group"><label class="form-label">Titre original *</label><input type="text" class="form-input" id="gs-title" placeholder="Solo Leveling"></div>
+        <div class="form-group"><label class="form-label">Titre français</label><input type="text" class="form-input" id="gs-titlefr" placeholder="Solo Leveling VF"></div>
+        <div class="form-group"><label class="form-label">Type *</label>
+          <select class="form-input form-input-select" id="gs-type">
+            <option value="manhwa">Manhwa</option><option value="manga">Manga</option>
+            <option value="novel">Novel</option><option value="manhua">Manhua</option>
+          </select></div>
+        <div class="form-group"><label class="form-label">Statut</label>
+          <select class="form-input form-input-select" id="gs-status">
+            <option value="ongoing">En cours</option><option value="ended">Terminé</option><option value="hiatus">En pause</option>
+          </select></div>
+        <div class="form-group"><label class="form-label">Genres (séparés par des virgules)</label><input type="text" class="form-input" id="gs-genres" placeholder="action, fantasy, regression"></div>
+        <div class="form-group"><label class="form-label">Auteur</label><input type="text" class="form-input" id="gs-author" placeholder="Nom de l'auteur"></div>
+        <div class="form-group"><label class="form-label">Note (0-5)</label><input type="number" class="form-input" id="gs-rating" min="0" max="5" step="0.1" value="4.5"></div>
+        <div class="form-group"><label class="form-label">Vues (approximatif)</label><input type="number" class="form-input" id="gs-views" value="10000"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">URL de la couverture (JPG/PNG direct)</label>
+        <input type="url" class="form-input" id="gs-cover" placeholder="https://files.catbox.moe/... ou https://i.imgur.com/...">
+        <p class="form-note">Hébergez votre image sur <a href="https://catbox.moe" target="_blank" style="color:var(--gold)">catbox.moe</a> (gratuit, permanent) et collez le lien direct ici.</p>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Couleur de fond (gradient CSS pour placeholder)</label>
+        <input type="text" class="form-input" id="gs-bg" value="linear-gradient(135deg,#1a0500,#3d1500)"
+          oninput="document.getElementById('gs-bg-prev').style.background=this.value">
+        <div id="gs-bg-prev" style="height:36px;border-radius:6px;margin-top:6px;background:linear-gradient(135deg,#1a0500,#3d1500);border:1px solid var(--border)"></div>
+      </div>
+      <div class="form-group"><label class="form-label">Synopsis *</label><textarea class="form-input form-textarea" id="gs-desc" placeholder="Description de la série…"></textarea></div>
+      <div style="display:flex;gap:10px;margin-top:4px;flex-wrap:wrap">
+        <button class="btn btn-primary" onclick="generateSeriesJSON()">Générer le JSON</button>
+        <button class="btn btn-secondary" onclick="generateAndApply()">Générer + Appliquer en direct</button>
+        <button class="btn btn-ghost" onclick="admTab('list')">Annuler</button>
+      </div>
+      <!-- Zone de résultat JSON -->
+      <div id="json-result-zone" style="display:none;margin-top:18px">
+        <div style="font-size:.72rem;font-weight:700;color:var(--gold);margin-bottom:8px;display:flex;align-items:center;gap:8px">
+          JSON généré — copiez et collez dans CATALOG :
+          <button class="btn btn-primary btn-xs" onclick="copyJSON()">Copier</button>
+        </div>
+        <div class="json-output" id="json-output"></div>
+        <div class="info-box" style="margin-top:10px">
+          <p>Ouvrez votre fichier HTML dans VSCode → trouvez <code style="color:#a5b4fc">const CATALOG = [</code> → collez ce bloc avant le premier <code style="color:#a5b4fc">{</code> ou après le dernier <code style="color:#a5b4fc">},</code></p>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  /* ── Générateur : nouveau chapitre ── */
+  else if (tab === 'gen-chapter') {
+    el.innerHTML = `
+    <div style="max-width:680px">
+      <p style="font-size:.78rem;color:var(--muted);margin-bottom:18px;line-height:1.65;border-left:3px solid var(--gold);padding-left:12px">
+        Collez les URLs directes de vos images (une par ligne). Cliquez <strong style="color:var(--gold)">Générer le JSON</strong> → copiez le bloc <code style="color:var(--gold)">chapters</code> et ajoutez-le à la bonne série dans le CATALOG. Ou utilisez <strong style="color:var(--gold)">Appliquer en direct</strong> pour ajouter immédiatement sans modifier le code.
+      </p>
+      <div class="form-group">
+        <label class="form-label">Série *</label>
+        <select class="form-input form-input-select" id="gc-series">
+          ${CAT.map(s => `<option value="${s.id}">${esc(s.titleFr||s.title)}</option>`).join('')}
+        </select>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:13px">
+        <div class="form-group"><label class="form-label">Numéro du chapitre *</label><input type="number" class="form-input" id="gc-num" min="0.1" step="0.1" placeholder="1"></div>
+        <div class="form-group"><label class="form-label">Titre (optionnel)</label><input type="text" class="form-input" id="gc-title" placeholder="Chapitre 1 · L'éveil"></div>
+        <div class="form-group"><label class="form-label">Date de sortie</label><input type="date" class="form-input" id="gc-date" value="${new Date().toISOString().split('T')[0]}"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">URLs des images — une par ligne *</label>
+        <p class="form-note">
+          Hébergez vos scans sur <a href="https://catbox.moe" target="_blank" style="color:var(--gold)">catbox.moe</a> (gratuit, permanent, max 200MB par fichier), <a href="https://imgur.com" target="_blank" style="color:var(--gold)">imgur.com</a>, GitHub raw, ou tout CDN public.<br>
+          Les liens Google Drive (format <code style="color:var(--gold)">/d/ID/view</code>) sont automatiquement convertis.
+        </p>
+        <textarea class="form-input form-textarea" id="gc-pages" style="min-height:150px;font-family:'JetBrains Mono',monospace;font-size:.74rem"
+          placeholder="https://files.catbox.moe/abc123.jpg&#10;https://files.catbox.moe/def456.jpg&#10;https://i.imgur.com/xyz789.png"></textarea>
+        <button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="previewChapterPages()">Prévisualiser les pages</button>
+      </div>
+      <div id="pages-prev-zone" style="display:none;margin-bottom:16px">
+        <div class="form-label" style="margin-bottom:7px">Aperçu :</div>
+        <div class="pages-preview-grid" id="pages-prev-grid"></div>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn btn-primary" onclick="generateChapterJSON()">Générer le JSON</button>
+        <button class="btn btn-secondary" onclick="applyChapterLive()">Appliquer en direct</button>
+        <button class="btn btn-ghost" onclick="admTab('list')">Annuler</button>
+      </div>
+      <div id="json-chap-result" style="display:none;margin-top:16px">
+        <div style="font-size:.72rem;font-weight:700;color:var(--gold);margin-bottom:8px;display:flex;align-items:center;gap:8px">
+          JSON du chapitre : <button class="btn btn-primary btn-xs" onclick="copyJSONChap()">Copier</button>
+        </div>
+        <div class="json-output" id="json-chap-output"></div>
+        <div class="info-box" style="margin-top:10px">
+          <p>Dans le CATALOG, trouvez votre série et ajoutez ce bloc au début du tableau <code style="color:#a5b4fc">chapters: [</code></p>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  /* ── Guide ── */
+  else if (tab === 'guide') {
+    el.innerHTML = `
+    <div style="max-width:700px">
+      <h3 style="font-family:'Cinzel',serif;color:var(--gold);font-size:1rem;margin-bottom:16px">Guide d'utilisation du Panel Admin</h3>
+      <div style="display:flex;flex-direction:column;gap:14px">
+        ${[
+          ['1. Connexion Admin', `Deux méthodes :<br>• <strong>Discord OAuth</strong> (recommandé) : configurez Supabase + Discord, puis ajoutez votre Discord User ID dans <code style="color:var(--gold)">GLOBAL_CONFIG.ADMIN_DISCORD_IDS</code><br>• <strong>Mot de passe local</strong> : changez <code style="color:var(--gold)">ADMIN_LOCAL_PASSWORD</code> dans GLOBAL_CONFIG.`],
+          ['2. Ajouter une série', `Onglet "Nouvelle série" → remplissez le formulaire → "Générer + Appliquer en direct" pour un effet immédiat (stocké dans localStorage jusqu\'à votre prochain déploiement).<br>Pour rendre permanent : copiez le JSON généré et collez-le dans <code style="color:var(--gold)">const CATALOG = [...]</code> dans le fichier HTML.`],
+          ['3. Ajouter un chapitre', `Onglet "Nouveau chapitre" → choisissez la série → collez les URLs de vos images → "Appliquer en direct".<br>Pour rendre permanent : copiez le JSON et collez-le dans <code style="color:var(--gold)">chapters: [...]</code> de la série correspondante.`],
+          ['4. Héberger les images', `Recommandations :<br>• <a href="https://catbox.moe" target="_blank" style="color:var(--gold)">catbox.moe</a> — gratuit, permanent, max 200MB, URL directe<br>• <a href="https://imgur.com" target="_blank" style="color:var(--gold)">imgur.com</a> — populaire, gratuit<br>• GitHub raw — si vous avez un repo dédié aux images<br>• Tout CDN public retournant une image directe`],
+          ['5. Google Drive', `Les liens Drive (format <code style="color:var(--gold)">/d/ID/view</code>) sont automatiquement convertis en <code style="color:var(--gold)">uc?id=ID</code> pour l'affichage. Note : Drive peut bloquer l'affichage si le quota est dépassé ou si les images ne sont pas publiques. Préférez catbox.moe pour plus de fiabilité.`],
+          ['6. Déployer sur GitHub Pages', `1. Créez un repo public GitHub<br>2. Mettez votre fichier HTML sous le nom <code style="color:var(--gold)">index.html</code><br>3. Settings → Pages → Source: main branch<br>4. Votre site est live sur <code style="color:var(--gold)">https://USERNAME.github.io/REPO</code>`],
+        ].map(([title, body]) => `
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px">
+          <div style="font-family:'Cinzel',serif;font-size:.8rem;color:var(--gold);margin-bottom:8px">${title}</div>
+          <p style="font-size:.78rem;color:var(--muted);line-height:1.72">${body}</p>
+        </div>`).join('')}
+      </div>
+    </div>`;
+  }
+}
+
+/* ── Helpers Admin ── */
+function getPageURLs() {
+  return (document.getElementById('gc-pages')?.value || '')
+    .split('\n')
+    .map(l => l.trim())
+    .filter(l => l.length > 0 && (l.startsWith('http') || l.startsWith('//')));
+}
+
+function previewChapterPages() {
+  const urls = getPageURLs();
+  if (!urls.length) { toast('Aucune URL valide', 'error'); return; }
+  const z = document.getElementById('pages-prev-zone');
+  const g = document.getElementById('pages-prev-grid');
+  if (!z || !g) return;
+  z.style.display = 'block';
+  g.innerHTML = urls.slice(0, 24).map((url, i) => `
+    <div class="prev-thumb">
+      <img src="${driveUrl(url)}" alt="Page ${i+1}" onerror="this.parentElement.style.background='#120000'">
+      <span class="prev-num">${i+1}</span>
+    </div>
+  `).join('') + (urls.length > 24 ? `<div style="display:flex;align-items:center;justify-content:center;border:1px dashed var(--border);border-radius:5px;color:var(--muted);font-size:.7rem">+${urls.length-24}</div>` : '');
+}
+
+/* Génère le JSON de la série */
+function generateSeriesJSON() {
+  const title = document.getElementById('gs-title')?.value?.trim();
+  if (!title) { toast('Le titre est obligatoire', 'error'); return; }
+  const obj = buildSeriesObject();
+  const json = JSON.stringify(obj, null, 2);
+  document.getElementById('json-result-zone').style.display = 'block';
+  document.getElementById('json-output').textContent = json;
+  window._lastSeriesJSON = json;
+  toast('JSON généré ! Copiez-le dans CATALOG.', 'success');
+  document.getElementById('json-result-zone').scrollIntoView({ behavior:'smooth' });
+}
+
+function buildSeriesObject(editId) {
+  const title = document.getElementById('gs-title')?.value?.trim() || '';
+  const slug  = editId || title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+  return {
+    id:          slug,
+    title,
+    titleFr:     document.getElementById('gs-titlefr')?.value?.trim() || title,
+    type:        document.getElementById('gs-type')?.value || 'manhwa',
+    genre:       (document.getElementById('gs-genres')?.value || '').split(',').map(g=>g.trim()).filter(Boolean),
+    status:      document.getElementById('gs-status')?.value || 'ongoing',
+    rating:      parseFloat(document.getElementById('gs-rating')?.value) || 4.5,
+    views:       parseInt(document.getElementById('gs-views')?.value) || 10000,
+    author:      document.getElementById('gs-author')?.value?.trim() || '',
+    description: document.getElementById('gs-desc')?.value?.trim() || '',
+    coverUrl:    document.getElementById('gs-cover')?.value?.trim() || '',
+    coverBg:     document.getElementById('gs-bg')?.value?.trim() || 'linear-gradient(135deg,#1a0500,#3d1500)',
+    updatedAt:   new Date().toISOString().split('T')[0],
+    chapters:    editId ? (CAT.find(c => c.id === editId)?.chapters || []) : [],
+  };
+}
+
+function generateAndApply() {
+  const title = document.getElementById('gs-title')?.value?.trim();
+  if (!title) { toast('Le titre est obligatoire', 'error'); return; }
+  const obj = buildSeriesObject();
+  const idx = CAT.findIndex(c => c.id === obj.id);
+  if (idx >= 0) CAT[idx] = obj; else CAT.unshift(obj);
+  saveCatalogExtra();
+  generateSeriesJSON();
+  toast(`Série "${obj.titleFr}" créée et appliquée en direct !`, 'success');
+}
+
+function generateChapterJSON() {
+  const num = parseFloat(document.getElementById('gc-num')?.value);
+  if (!num) { toast('Numéro de chapitre requis', 'error'); return; }
+  const pages = getPageURLs().map(driveUrl);
+  const obj = {
+    num,
+    title: document.getElementById('gc-title')?.value?.trim() || `Chapitre ${num}`,
+    date:  document.getElementById('gc-date')?.value || new Date().toISOString().split('T')[0],
+    pages,
+  };
+  const json = JSON.stringify(obj, null, 2);
+  document.getElementById('json-chap-result').style.display = 'block';
+  document.getElementById('json-chap-output').textContent = json;
+  window._lastChapJSON = json;
+  toast(`JSON Ch.${num} généré (${pages.length} pages)`, 'success');
+  document.getElementById('json-chap-result').scrollIntoView({ behavior:'smooth' });
+}
+
+function applyChapterLive() {
+  const seriesId = document.getElementById('gc-series')?.value;
+  const num      = parseFloat(document.getElementById('gc-num')?.value);
+  if (!seriesId || !num) { toast('Série et numéro requis', 'error'); return; }
+  const pages = getPageURLs().map(driveUrl);
+  const chap  = {
+    num,
+    title: document.getElementById('gc-title')?.value?.trim() || `Chapitre ${num}`,
+    date:  document.getElementById('gc-date')?.value || new Date().toISOString().split('T')[0],
+    pages,
+  };
+  const s = CAT.find(c => c.id === seriesId);
+  if (!s) { toast('Série introuvable', 'error'); return; }
+  s.chapters = s.chapters.filter(c => c.num !== num);
+  s.chapters.push(chap);
+  s.updatedAt = chap.date;
+  saveCatalogExtra();
+  toast(`Ch.${num} appliqué pour "${s.titleFr||s.title}" (${pages.length} pages) !`, 'success');
+  admTab('list', document.getElementById('at-list'));
+}
+
+function copyJSON()     { navigator.clipboard?.writeText(window._lastSeriesJSON || '').then(()=>toast('JSON copié !','success')); }
+function copyJSONChap() { navigator.clipboard?.writeText(window._lastChapJSON   || '').then(()=>toast('JSON copié !','success')); }
+
+function admEditSeries(id) {
+  admTab('gen-series', document.getElementById('at-gen-series'));
+  const s = CAT.find(c => c.id === id);
+  if (!s) return;
+  setTimeout(() => {
+    if (document.getElementById('gs-title')) {
+      document.getElementById('gs-title').value   = s.title;
+      document.getElementById('gs-titlefr').value = s.titleFr || '';
+      document.getElementById('gs-type').value    = s.type;
+      document.getElementById('gs-status').value  = s.status;
+      document.getElementById('gs-genres').value  = s.genre.join(', ');
+      document.getElementById('gs-author').value  = s.author || '';
+      document.getElementById('gs-rating').value  = s.rating;
+      document.getElementById('gs-views').value   = s.views || 0;
+      document.getElementById('gs-cover').value   = s.coverUrl || '';
+      document.getElementById('gs-bg').value      = s.coverBg || '';
+      document.getElementById('gs-bg-prev').style.background = s.coverBg || '';
+      document.getElementById('gs-desc').value    = s.description;
+      document.getElementById('gs-title').setAttribute('data-edit', id);
+    }
+  }, 100);
+}
+
+function admQuickChapter(id) {
+  admTab('gen-chapter', document.getElementById('at-gen-chapter'));
+  setTimeout(() => {
+    const sel = document.getElementById('gc-series');
+    if (sel) sel.value = id;
+  }, 100);
+}
+
+function admDeleteSeries(id) {
+  const s = CAT.find(c => c.id === id);
+  if (!confirm(`Supprimer "${s?.titleFr||s?.title}" ? Action irréversible.`)) return;
+  CAT.splice(CAT.findIndex(c => c.id === id), 1);
+  saveCatalogExtra();
+  toast('Série supprimée', 'success');
+  admTab('list', document.getElementById('at-list'));
+}
+
+function exportCatalogJSON() {
+  const blob = new Blob([JSON.stringify(CAT, null, 2)], { type:'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'infiniscan_catalog.json'; a.click();
+  toast('Catalogue exporté', 'success');
+}
+
+function importCatalogJSON() {
+  const input = document.createElement('input'); input.type = 'file'; input.accept = '.json';
+  input.onchange = e => {
+    const f = e.target.files[0]; if (!f) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const data = JSON.parse(ev.target.result);
+        if (!Array.isArray(data)) throw new Error('Pas un tableau');
+        data.forEach(s => {
+          const idx = CAT.findIndex(c => c.id === s.id);
+          if (idx >= 0) CAT[idx] = s; else CAT.push(s);
+        });
+        saveCatalogExtra();
+        toast(`${data.length} séries importées !`, 'success');
+        admTab('list', document.getElementById('at-list'));
+      } catch(e2) { toast('Fichier JSON invalide', 'error'); }
+    };
+    reader.readAsText(f);
+  };
+  input.click();
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SECTION 11 : RECHERCHE
+   ═══════════════════════════════════════════════════════════════ */
+let _searchTimer;
+function handleSearch(q) {
+  const clear = document.getElementById('hdr-search-clear');
+  if (clear) clear.style.display = q ? 'block' : 'none';
+  clearTimeout(_searchTimer);
+  _searchTimer = setTimeout(() => renderSearchDropdown(q), 180);
+}
+
+function renderSearchDropdown(q) {
+  const dd = document.getElementById('search-dropdown');
+  if (!q || q.length < 2) { dd.classList.remove('open'); return; }
+  const results = CAT.filter(s =>
+    s.title.toLowerCase().includes(q.toLowerCase()) ||
+    (s.titleFr||'').toLowerCase().includes(q.toLowerCase()) ||
+    s.genre.some(g => g.toLowerCase().includes(q.toLowerCase()))
+  ).slice(0, 8);
+
+  if (results.length === 0) {
+    dd.innerHTML = `<div style="padding:18px;text-align:center;font-size:.78rem;color:var(--muted)">Aucun résultat pour "${esc(q)}"</div>`;
+  } else {
+    dd.innerHTML = results.map(s => {
+      const hl = (text) => text.replace(new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`, 'gi'),
+        '<mark style="background:rgba(240,165,0,.22);color:var(--gold);border-radius:2px">$1</mark>');
+      return `
+      <div class="sr-item" onclick="openSeries('${s.id}');closeSearchDd()">
+        <div class="sr-thumb" style="background:${s.coverBg};width:38px;height:52px;border-radius:5px;overflow:hidden;display:flex;align-items:center;justify-content:center">
+          ${s.coverUrl ? `<img src="${driveUrl(s.coverUrl)}" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none'" alt="">` : ''}
+        </div>
+        <div>
+          <div class="sr-title">${hl(s.titleFr||s.title)}</div>
+          <div class="sr-meta">${typeLabel(s.type)} · ${s.genre.slice(0,2).join(', ')}</div>
+        </div>
+      </div>`;
+    }).join('') + `<div style="padding:8px;text-align:center;border-top:1px solid var(--border)">
+      <button style="background:none;border:none;color:var(--gold);font-size:.72rem;cursor:pointer" onclick="filterCatalog('');document.getElementById('ft-q').value='${q.replace(/'/g,"\\'")}';renderCatalog();closeSearchDd()">Voir tous les résultats →</button>
+    </div>`;
+  }
+  dd.classList.add('open');
+  /* Position sous le champ */
+  const inp = document.getElementById('hdr-search');
+  if (inp) {
+    const r = inp.getBoundingClientRect();
+    dd.style.top  = (r.bottom + 6) + 'px';
+    dd.style.left = r.left + 'px';
+    dd.style.minWidth = r.width + 'px';
+  }
+}
+
+function openSearchDd()      { const q = document.getElementById('hdr-search')?.value; if (q && q.length >= 2) renderSearchDropdown(q); }
+function closeSearchDd()     { document.getElementById('search-dropdown')?.classList.remove('open'); }
+function closeSearchDdDelay(){ setTimeout(closeSearchDd, 200); }
+function clearSearch()       { const i = document.getElementById('hdr-search'); if(i){i.value='';i.focus();} document.getElementById('hdr-search-clear').style.display='none'; closeSearchDd(); }
+
+/* ═══════════════════════════════════════════════════════════════
+   SECTION 12 : MODALES & MENU MOBILE
+   ═══════════════════════════════════════════════════════════════ */
+function showAuthModal()  { document.getElementById('auth-modal').style.display = 'block'; }
+function closeAuthModal() { document.getElementById('auth-modal').style.display = 'none'; }
+function toggleMobMenu()  { document.getElementById('mob-sidebar').classList.toggle('open'); document.getElementById('mob-overlay').classList.toggle('open'); }
+function closeMobMenu()   { document.getElementById('mob-sidebar').classList.remove('open'); document.getElementById('mob-overlay').classList.remove('open'); }
+
+/* ═══════════════════════════════════════════════════════════════
+   SECTION 13 : TOAST
+   ═══════════════════════════════════════════════════════════════ */
+function toast(msg, type = 'success') {
+  const zone = document.getElementById('toast-zone');
+  if (!zone) return;
+  const icons = { success:'✓', error:'✕', info:'i' };
+  const t = document.createElement('div');
+  t.className = `toast t-${type}`;
+  t.innerHTML = `<span style="width:18px;height:18px;border-radius:50%;background:${type==='success'?'rgba(16,185,129,.2)':type==='error'?'rgba(220,38,38,.2)':'rgba(59,130,246,.2)'};display:inline-flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:900;flex-shrink:0">${icons[type]||'i'}</span>${esc(msg)}`;
+  zone.appendChild(t);
+  setTimeout(() => { t.classList.add('exit'); setTimeout(() => t.remove(), 300); }, 3200);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SECTION 14 : SCROLL HEADER
+   ═══════════════════════════════════════════════════════════════ */
+let _lastScrollY = 0;
+window.addEventListener('scroll', () => {
+  const hdr = document.getElementById('site-header');
+  if (!hdr) return;
+  const cur = window.scrollY;
+  if (cur > 80 && cur > _lastScrollY && S.page !== 'reader') {
+    hdr.classList.add('hdr-hidden');
+  } else {
+    hdr.classList.remove('hdr-hidden');
+  }
+  hdr.classList.toggle('scrolled', cur > 40);
+  _lastScrollY = cur;
+}, { passive: true });
+
+/* ═══════════════════════════════════════════════════════════════
+   SECTION 15 : INIT — Démarrage de l'application
+   ═══════════════════════════════════════════════════════════════ */
+(function init() {
+  loadState();
+  renderLogo();
+  updateAuthUI();
+  updateFavBadge();
+  initSupabase();
+  renderHome();
+
+  /* Gestion callback OAuth Supabase (hash dans l'URL après redirect) */
+  if (window.location.hash.includes('access_token')) {
+    /* Supabase gère ça via onAuthStateChange, mais on nettoie l'URL */
+    setTimeout(() => window.history.replaceState({}, '', window.location.pathname), 1500);
+  }
+})();
+</script>
+</body>
+</html>
