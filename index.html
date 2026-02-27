@@ -983,7 +983,7 @@ footer { background: #030408; border-top: 1px solid rgba(240,165,0,0.08); paddin
       <button class="btn btn-secondary" style="width:100%;justify-content:center;padding:11px" onclick="loginDemo()">Créer un compte démo</button>
 
       <div class="info-box" style="margin-top:16px">
-        <p><strong style="color:#a5b4fc">Configuration Supabase :</strong> Collez <code>https://pqmyjknhhujbjpdqrcun.supabase.co</code> et <code>eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBxbXlqa25oaHVqYmpwZHFyY3VuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIxODk1MjgsImV4cCI6MjA4Nzc2NTUyOH0.P9XPffMWgqmS4ELDJAhKSSMHyVEbXPtQ9z4W8iGbIhk</code> dans la section SUPABASE_CONFIG du script pour activer la vraie connexion Discord OAuth.<br>
+        <p><strong style="color:#a5b4fc">Configuration Supabase :</strong> Collez <code>SUPABASE_ANON_KEY</code> dans la section SUPABASE_CONFIG du script pour activer la vraie connexion Discord OAuth.<br>
         <a href="https://supabase.com" target="_blank" style="color:#818cf8;text-decoration:underline">supabase.com →</a></p>
       </div>
     </div>
@@ -1055,8 +1055,8 @@ const GLOBAL_CONFIG = {
    7. Collez vos clés ci-dessous et déployez !
    ═══════════════════════════════════════════════════════════════ */
 const SUPABASE_CONFIG = {
-  URL:  '',  /* ← COLLEZ ICI : https://xxxxx.supabase.co */
-  KEY:  '',  /* ← COLLEZ ICI : votre anon/public key */
+  URL:  'https://pqmyjknhhujbjpdqrcun.supabase.co',  /* ← COLLEZ ICI : https://xxxxx.supabase.co */
+  KEY:  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBxbXlqa25oaHVqYmpwZHFyY3VuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIxODk1MjgsImV4cCI6MjA4Nzc2NTUyOH0.P9XPffMWgqmS4ELDJAhKSSMHyVEbXPtQ9z4W8iGbIhk',  /* ← COLLEZ ICI : votre anon/public key */
 };
 
 /* ═══════════════════════════════════════════════════════════════
